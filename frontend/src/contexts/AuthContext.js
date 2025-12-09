@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(async (navigate = null) => {
     try {
-      await axios.post('http://localhost:3001/api/auth/logout');
+      await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/logout`);
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUserProfile = useCallback(async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/auth/profile');
+      const response = await axios.get(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/profile`);
       setUser(response.data.user);
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
@@ -70,7 +70,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('http://localhost:3001/api/auth/login', {
+      const response = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/login`, {
         email,
         password
       });
@@ -93,7 +93,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (name, email, password) => {
     try {
-      const response = await axios.post('http://localhost:3001/api/auth/register', {
+      const response = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/register`, {
         name,
         email,
         password
@@ -117,7 +117,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (updates) => {
     try {
-      const response = await axios.put('http://localhost:3001/api/auth/profile', updates);
+      const response = await axios.put(`${"https://vacholink.onrender.com" || "http://localhost:3001"}http://localhost:3001/api/auth/profile`, updates);
       setUser(response.data.user);
       return { success: true, user: response.data.user };
     } catch (error) {
@@ -134,7 +134,7 @@ export const AuthProvider = ({ children }) => {
       formData.append('profilePhoto', file);
 
       const response = await axios.post(
-        'http://localhost:3001/api/auth/profile/photo',
+        `${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/profile/photo`,
         formData,
         {
           headers: {
@@ -155,7 +155,7 @@ export const AuthProvider = ({ children }) => {
 
   const changePassword = async (currentPassword, newPassword) => {
     try {
-      await axios.post('http://localhost:3001/api/auth/change-password', {
+      await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/change-password`, {
         currentPassword,
         newPassword
       });

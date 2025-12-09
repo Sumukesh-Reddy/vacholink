@@ -17,7 +17,7 @@ export default function Login() {
   // Handle Google login
   const handleGoogleSuccess = async (cred) => {
     try {
-      const res = await axios.post("http://localhost:3001/api/auth/google", {
+      const res = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/google`, {
         credential: cred.credential,
       });
       login(res.data.user, res.data.token);
@@ -37,7 +37,7 @@ export default function Login() {
     setError("");
     
     try {
-      const res = await axios.post("http://localhost:3001/api/auth/send-otp", { email });
+      const res = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/send-otp`, { email });
       
       if (res.data.success) {
         setOtpSent(true);
@@ -76,7 +76,7 @@ export default function Login() {
 
     try {
       // Step 1: Verify OTP
-      const verifyRes = await axios.post("http://localhost:3001/api/auth/verify-otp", {
+      const verifyRes = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/verify-otp`, {
         email,
         otp
       });
@@ -88,7 +88,7 @@ export default function Login() {
       }
 
       // Step 2: Register user
-      const registerRes = await axios.post("http://localhost:3001/api/auth/register", {
+      const registerRes = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/register`, {
         name,
         email,
         password
@@ -119,7 +119,7 @@ export default function Login() {
     setError("");
 
     try {
-      const res = await axios.post("http://localhost:3001/api/auth/login", {
+      const res = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/login`, {
         email,
         password
       });

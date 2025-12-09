@@ -13,7 +13,7 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     if (token && user) {
-      const newSocket = io('http://localhost:3001', {
+      const newSocket = io(`${"https://vacholink.onrender.com" || "http://localhost:3001"}`, {
         auth: { token }
       });
 

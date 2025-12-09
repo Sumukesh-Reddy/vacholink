@@ -13,7 +13,7 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:3001/api/auth/forgot-password', {
+      const response = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/forgot-password`, {
         email
       });
 

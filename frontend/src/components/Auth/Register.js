@@ -33,7 +33,7 @@ const Register = () => {
     try {
       if (!otpSent) {
         // Send OTP
-        const res = await axios.post('http://localhost:3001/api/auth/send-otp', {
+        const res = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/send-otp`, {
           name,
           email,
           password
@@ -45,7 +45,7 @@ const Register = () => {
         }
       } else {
         // Verify OTP and complete registration
-        const verifyRes = await axios.post('http://localhost:3001/api/auth/verify-otp', {
+        const verifyRes = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/verify-otp`, {
           email,
           otp
         });

@@ -14,7 +14,7 @@ const UserList = ({ onSelectUser, onClose }) => {
     }
 
     try {
-      const response = await axios.get('http://localhost:3001/api/users/search', {
+      const response = await axios.get(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/users/search`, {
         params: { query: searchQuery }
       });
       setUsers(response.data.users);

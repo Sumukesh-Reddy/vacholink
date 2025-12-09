@@ -18,7 +18,7 @@ const ChatPage = () => {
 
   const fetchChatRooms = useCallback(async () => {
     try {
-      const response = await axios.get('http://localhost:3001/api/chat/rooms');
+      const response = await axios.get(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/chat/rooms`);
       setRooms(response.data.rooms);
       
       if (response.data.rooms.length > 0 && !selectedRoom) {
@@ -68,7 +68,7 @@ const ChatPage = () => {
 
   const fetchMessages = async (roomId) => {
     try {
-      const response = await axios.get(`http://localhost:3001/api/chat/messages/${roomId}`);
+      const response = await axios.get(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/chat/messages/${roomId}`);
       setMessages(response.data.messages);
     } catch (error) {
       toast.error('Failed to load messages');
@@ -101,7 +101,7 @@ const ChatPage = () => {
 
   const handleStartNewChat = async (userId) => {
     try {
-      const response = await axios.post('http://localhost:3001/api/chat/room', {
+      const response = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/chat/room`, {
         participantId: userId
       });
 
