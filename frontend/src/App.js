@@ -13,10 +13,9 @@ import Navbar from './components/Common/Navbar';
 import PrivateRoute from './components/Auth/PrivateRoute';
 
 // FIXED: Correct component names and paths
-import Login from './components/Auth/Login'; // Need to create this file
+import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
-import ForgotPassword from './components/Auth/ForgotPassword';
-import ResetPassword from './components/Auth/ResetPassword';
+// Forgot/Reset password disabled
 import ChatPage from './pages/ChatPage';
 import ProfilePage from './pages/ProfilePage';
 
@@ -31,8 +30,7 @@ function App() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
+                {/* Forgot/Reset password routes disabled */}
                 
                 <Route path="/" element={
                   <PrivateRoute>

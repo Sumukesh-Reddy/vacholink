@@ -228,8 +228,13 @@ const authenticateToken = async (req, res, next) => {
 // Utility: generate 6-digit OTP
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-// 0. Send OTP for Signup
+// 0. Send OTP for Signup - DISABLED
 app.post('/api/auth/send-otp', async (req, res) => {
+  return res.status(410).json({ success: false, message: 'OTP verification has been disabled' });
+});
+
+// OTP endpoint code commented out - using direct registration instead
+app.post('/api/auth/send-otp-disabled', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -351,8 +356,13 @@ app.post('/api/auth/send-otp', async (req, res) => {
   }
 });
 
-// 0b. Verify OTP and complete signup
+// 0b. Verify OTP and complete signup - DISABLED
 app.post('/api/auth/verify-otp', async (req, res) => {
+  return res.status(410).json({ success: false, message: 'OTP verification has been disabled' });
+});
+
+// OTP verification code commented out - using direct registration instead
+app.post('/api/auth/verify-otp-disabled', async (req, res) => {
   try {
     const { email, otp } = req.body;
 
@@ -697,8 +707,13 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
   }
 });
 
-// 7. Forgot Password
+// 7. Forgot Password - DISABLED
 app.post('/api/auth/forgot-password', async (req, res) => {
+  return res.status(410).json({ success: false, message: 'Password reset has been disabled' });
+});
+
+// Forgot password code commented out
+app.post('/api/auth/forgot-password-disabled', async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -777,8 +792,13 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   }
 });
 
-// 8. Reset Password
+// 8. Reset Password - DISABLED
 app.post('/api/auth/reset-password', async (req, res) => {
+  return res.status(410).json({ success: false, message: 'Password reset has been disabled' });
+});
+
+// Reset password code commented out
+app.post('/api/auth/reset-password-disabled', async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 

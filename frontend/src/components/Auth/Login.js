@@ -289,44 +289,26 @@ const Login = () => {
 
           <div style={{
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
+            gap: '8px',
             marginBottom: '24px'
           }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <input
-                type="checkbox"
-                id="remember"
-                style={{
-                  width: '16px',
-                  height: '16px',
-                  accentColor: '#7289da',
-                  cursor: 'pointer',
-                  borderRadius: '3px'
-                }}
-              />
-              <label htmlFor="remember" style={{
-                color: '#b9bbbe',
-                fontSize: '13px',
-                cursor: 'pointer'
-              }}>Remember me</label>
-            </div>
-            <Link to="/forgot-password" style={{
-              color: '#7289da',
+            <input
+              type="checkbox"
+              id="remember"
+              style={{
+                width: '16px',
+                height: '16px',
+                accentColor: '#7289da',
+                cursor: 'pointer',
+                borderRadius: '3px'
+              }}
+            />
+            <label htmlFor="remember" style={{
+              color: '#b9bbbe',
               fontSize: '13px',
-              textDecoration: 'none',
-              fontWeight: '500',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => e.target.style.opacity = '0.8'}
-            onMouseLeave={(e) => e.target.style.opacity = '1'}
-            >
-              Forgot password?
-            </Link>
+              cursor: 'pointer'
+            }}>Remember me</label>
           </div>
 
           <button
