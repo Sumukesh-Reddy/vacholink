@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken');
 const cloudinary = require('cloudinary').v2;
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const path = require('path');
@@ -20,10 +20,9 @@ const signupOtps = new Map();
 
 const app = express();
 app.use(helmet());
-// Running behind a proxy (Render); trust X-Forwarded-* so rate limiting works
 app.set('trust proxy', 1);
 
-// Robust CORS: allow comma-separated CLIENT_URL values
+// CORS configuration
 const allowedOrigins = (process.env.CLIENT_URL || '')
   .split(',')
   .map(o => o.trim())
@@ -31,7 +30,7 @@ const allowedOrigins = (process.env.CLIENT_URL || '')
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // non-browser clients
+    if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('Not allowed by CORS'));
   },
@@ -42,7 +41,6 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-// Handle preflight without path-to-regexp wildcards (Express 5)
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') {
     return cors(corsOptions)(req, res, next);
@@ -68,7 +66,7 @@ if (!mongoUri) {
 }
 
 mongoose.connect(mongoUri)
-  .then(() => console.log(' MongoDB connected'))
+  .then(() => console.log('✅ MongoDB connected'))
   .catch(err => {
     console.error('❌ MongoDB connection error:', err);
     process.exit(1);
@@ -91,7 +89,7 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 5 * 1024 * 1024
   },
   fileFilter: function (req, file, cb) {
     const filetypes = /jpeg|jpg|png|gif/;
@@ -105,48 +103,23 @@ const upload = multer({
   }
 });
 
-// Email transporter factory with SendGrid primary, Gmail fallback
-const createEmailTransporter = (useGmail = false) => {
-  // Force Gmail if requested
-  if (useGmail || !process.env.SENDGRID_API_KEY) {
-    console.log('📧 Using Gmail SMTP...');
-    
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.warn('⚠️ Gmail credentials not set');
-      return null;
-    }
-    
-    return nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      },
-      connectionTimeout: 10000,
-      socketTimeout: 15000,
-      tls: {
-        rejectUnauthorized: false
-      }
-    });
+// Resend Email Client
+const createResendClient = () => {
+  console.log('📧 Creating Resend client...');
+  
+  if (!process.env.RESEND_API_KEY) {
+    console.error('❌ RESEND_API_KEY is not set in environment variables');
+    return null;
   }
   
-  // Try SendGrid first
-  console.log('📧 Using SendGrid SMTP...');
-  
-  return nodemailer.createTransport({
-    host: 'smtp.sendgrid.net',
-    port: 587,
-    secure: false,
-    auth: {
-      user: 'apikey',
-      pass: process.env.SENDGRID_API_KEY
-    },
-    connectionTimeout: 8000, // Shorter timeout for faster fallback
-    socketTimeout: 10000,
-    tls: {
-      rejectUnauthorized: false
-    }
-  });
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    console.log('✅ Resend client created successfully');
+    return resend;
+  } catch (error) {
+    console.error('❌ Failed to create Resend client:', error.message);
+    return null;
+  }
 };
 
 // ========== MODELS ==========
@@ -212,7 +185,7 @@ const roomSchema = new mongoose.Schema({
 
 const Room = mongoose.model('Room', roomSchema);
 
-// Ensure indexes are correct (handle existing non-sparse googleId index)
+// Ensure indexes
 (async () => {
   try {
     const indexes = await User.collection.indexes();
@@ -263,8 +236,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
     console.log('🔐 Send OTP request received for:', email);
     console.log('📧 Environment check:', {
       NODE_ENV: process.env.NODE_ENV || 'development',
-      EMAIL_USER_SET: !!process.env.EMAIL_USER,
-      EMAIL_PASS_SET: !!process.env.EMAIL_PASS
+      RESEND_API_KEY_SET: !!process.env.RESEND_API_KEY
     });
 
     if (!name || !email || !password) {
@@ -286,7 +258,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Display name is already taken, please choose another' });
     }
 
-    // Hash password now so we don't store plain text
+    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -297,117 +269,84 @@ app.post('/api/auth/send-otp', async (req, res) => {
     signupOtps.set(email, { name, hashedPassword, otp, expiresAt });
     
     console.log('📦 Generated OTP for', email, ':', otp);
-    console.log('⏰ OTP expires at:', new Date(expiresAt).toLocaleTimeString());
 
-    // In development, skip email sending and return OTP directly
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('🚀 [DEV MODE] Skipping email, returning OTP directly');
+    // Send email via Resend
+    try {
+      const resend = createResendClient();
       
-      return res.json({
-        success: true,
-        message: 'OTP generated (email skipped in dev mode)',
-        otp: otp // Always return OTP in development
-      });
-    }
+      if (!resend) {
+        throw new Error('Resend client not available');
+      }
 
-    // In production, try to send email with fallback
-    const mailOptions = {
-      from: `"VachoLink" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Your VachoLink Signup Verification Code',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h2 style="color: #43b581; margin-bottom: 10px;">Verify Your Email</h2>
-            <p style="color: #666;">Welcome to VachoLink! Use the code below to complete your signup.</p>
-          </div>
-          
-          <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 8px; margin: 30px 0;">
-            <p style="color: #888; margin: 0 0 10px 0; font-size: 14px;">Your verification code:</p>
-            <div style="font-size: 32px; font-weight: bold; letter-spacing: 10px; color: #43b581; font-family: monospace;">
-              ${otp}
+      const senderEmail =  'onboarding@resend.dev' || process.env.RESEND_SENDER;
+      
+      console.log('📤 Attempting to send email via Resend...');
+      
+      const { data, error } = await resend.emails.send({
+        from: `VachoLink <${senderEmail}>`,
+        to: [email],
+        subject: 'Your VachoLink Verification Code',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #e8e8e8; border-radius: 12px; background: linear-gradient(135deg, #1a1c22 0%, #0a0a0a 100%); color: #ffffff;">
+            <div style="text-align: center; margin-bottom: 40px;">
+              <div style="display: inline-flex; align-items: center; justify-content: center; width: 70px; height: 70px; background: linear-gradient(135deg, #43b581 0%, #3ba55d 100%); border-radius: 50%; color: white; font-weight: bold; font-size: 32px; margin-bottom: 20px; box-shadow: 0 0 20px rgba(67, 181, 129, 0.4);">
+                ꍡ
+              </div>
+              <h2 style="color: #ffffff; font-size: 28px; font-weight: 700; margin-bottom: 10px;">Verify Your Email</h2>
+              <p style="color: #b9bbbe; font-size: 16px;">Welcome to VachoLink! Use the code below to complete your signup.</p>
+            </div>
+            
+            <div style="background: rgba(32, 34, 37, 0.8); padding: 30px; text-align: center; border-radius: 10px; margin: 40px 0; border: 1px solid rgba(67, 181, 129, 0.3); backdrop-filter: blur(10px);">
+              <p style="color: #8e9297; margin: 0 0 15px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">VERIFICATION CODE</p>
+              <div style="font-size: 48px; font-weight: bold; letter-spacing: 15px; color: #43b581; font-family: 'Courier New', monospace; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 8px; display: inline-block; text-shadow: 0 0 10px rgba(67, 181, 129, 0.5);">
+                ${otp}
+              </div>
+              <p style="color: #8e9297; margin-top: 20px; font-size: 13px;">This code expires in 10 minutes</p>
+            </div>
+            
+            <div style="color: #8e9297; font-size: 14px; text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid rgba(32, 34, 37, 0.8);">
+              <p>If you didn't request this, please ignore this email.</p>
+              <p style="margin-top: 30px; font-size: 12px; color: #4f545c;">© ${new Date().getFullYear()} VachoLink. All rights reserved.</p>
             </div>
           </div>
-          
-          <div style="color: #888; font-size: 12px; text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-            <p>This code will expire in 10 minutes.</p>
-            <p>If you didn't request this, please ignore this email.</p>
-            <p style="margin-top: 20px;">© ${new Date().getFullYear()} VachoLink. All rights reserved.</p>
-          </div>
-        </div>
-      `
-    };
+        `,
+        text: `Your VachoLink verification code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`
+      });
 
-    let emailSent = false;
-    let lastError = null;
-
-    // Try SendGrid first (if configured)
-    if (process.env.SENDGRID_API_KEY) {
-      try {
-        console.log('📤 Attempting SendGrid...');
-        const sendGridTransporter = createEmailTransporter(false);
-        const info = await sendGridTransporter.sendMail(mailOptions);
-        console.log('✅ Email sent via SendGrid! Message ID:', info.messageId);
-        emailSent = true;
-      } catch (sendGridError) {
-        console.error('❌ SendGrid failed:', sendGridError.message);
-        lastError = sendGridError;
-        // Fall through to try Gmail
+      if (error) {
+        console.error('❌ Resend API error:', error);
+        throw new Error(`Resend failed: ${error.message}`);
       }
-    }
 
-    // Fallback to Gmail if SendGrid failed or not configured
-    if (!emailSent && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      try {
-        console.log('📤 Attempting Gmail fallback...');
-        const gmailTransporter = createEmailTransporter(true);
-        if (gmailTransporter) {
-          const info = await gmailTransporter.sendMail(mailOptions);
-          console.log('✅ Email sent via Gmail! Message ID:', info.messageId);
-          emailSent = true;
-        }
-      } catch (gmailError) {
-        console.error('❌ Gmail also failed:', gmailError.message);
-        lastError = gmailError;
-      }
-    }
-
-    if (emailSent) {
+      console.log('✅ Email sent successfully via Resend! Email ID:', data?.id);
+      
+      // Success - don't return OTP in production
       res.json({
         success: true,
-        message: 'OTP sent to your email',
-        otp: undefined
+        message: 'Verification code sent to your email',
+        otp: process.env.NODE_ENV === 'production' ? undefined : otp
       });
-    } else {
-      console.error('❌ All email methods failed. Last error:', lastError?.message);
-      console.log('⚠️ Returning OTP as fallback:', otp);
+
+    } catch (emailError) {
+      console.error('❌ Email sending failed:', emailError.message);
+      
+      // Fallback: Return OTP anyway for user to manually enter
+      console.log('⚠️ Email service failed, returning OTP for manual entry:', otp);
       
       res.json({
         success: true,
-        message: 'Email service temporarily unavailable. Please use the OTP below:',
+        message: 'Check your email for verification code. If not received, use this code:',
         otp: otp,
         emailFailed: true
       });
     }
 
   } catch (error) {
-    console.error('❌ Send OTP error:', {
-      message: error.message,
-      code: error.code,
-      stack: error.stack
-    });
-    
-    // Get OTP from memory if available
-    const otpData = signupOtps.get(req.body.email);
-    const otp = otpData ? otpData.otp : 'Not generated';
-    
+    console.error('❌ Send OTP error:', error.message);
     res.status(500).json({ 
       success: false, 
-      message: 'Failed to send OTP',
-      debug: process.env.NODE_ENV !== 'production' ? {
-        error: error.message,
-        otp: otp
-      } : undefined
+      message: 'Failed to process OTP request',
+      debug: process.env.NODE_ENV !== 'production' ? error.message : undefined
     });
   }
 });
@@ -429,8 +368,6 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     }
 
     console.log('📦 Found pending signup for:', email);
-    console.log('⏰ OTP expires at:', new Date(pending.expiresAt).toLocaleTimeString());
-    console.log('🕒 Current time:', new Date().toLocaleTimeString());
 
     if (pending.expiresAt < Date.now()) {
       signupOtps.delete(email);
@@ -444,7 +381,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid OTP' });
     }
 
-    // Final uniqueness check in case state changed
+    // Final uniqueness check
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
       signupOtps.delete(email);
@@ -495,14 +432,13 @@ app.post('/api/auth/verify-otp', async (req, res) => {
   }
 });
 
-// 1. Register with Email/Password (legacy endpoint - for backward compatibility)
+// 1. Register with Email/Password (legacy endpoint)
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
     console.log('📝 Legacy register endpoint called for:', email);
 
-    // Validation
     if (!name || !email || !password) {
       return res.status(400).json({ 
         success: false, 
@@ -517,7 +453,6 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
 
-    // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ 
@@ -526,7 +461,6 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
 
-    // Check if name taken
     const existingName = await User.findOne({ name });
     if (existingName) {
       return res.status(400).json({
@@ -535,11 +469,9 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
 
-    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
     const user = await User.create({
       name,
       email,
@@ -547,14 +479,12 @@ app.post('/api/auth/register', async (req, res) => {
       isVerified: true
     });
 
-    // Generate token
     const token = jwt.sign(
       { userId: user._id, email: user.email }, 
       process.env.JWT_SECRET, 
       { expiresIn: '7d' }
     );
 
-    // Remove password from response
     const userResponse = user.toObject();
     delete userResponse.password;
 
@@ -585,7 +515,6 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // Find user
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
       return res.status(401).json({ 
@@ -594,7 +523,6 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ 
@@ -603,19 +531,16 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // Update online status
     user.online = true;
     user.lastSeen = new Date();
     await user.save();
 
-    // Generate token
     const token = jwt.sign(
       { userId: user._id, email: user.email }, 
       process.env.JWT_SECRET, 
       { expiresIn: '7d' }
     );
 
-    // Remove password from response
     const userResponse = user.toObject();
     delete userResponse.password;
 
@@ -677,7 +602,7 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// 5. Upload Profile Photo (without multer-storage-cloudinary)
+// 5. Upload Profile Photo
 app.post('/api/auth/profile/photo', authenticateToken, upload.single('profilePhoto'), async (req, res) => {
   try {
     if (!req.file) {
@@ -687,7 +612,6 @@ app.post('/api/auth/profile/photo', authenticateToken, upload.single('profilePho
       });
     }
 
-    // Upload to Cloudinary
     const result = await cloudinary.uploader.upload(req.file.path, {
       folder: 'chat-app-profiles',
       width: 500,
@@ -695,7 +619,6 @@ app.post('/api/auth/profile/photo', authenticateToken, upload.single('profilePho
       crop: 'limit'
     });
 
-    // Delete old profile photo from Cloudinary if exists
     if (req.user.profilePhoto) {
       const publicId = req.user.profilePhoto.split('/').pop().split('.')[0];
       try {
@@ -705,7 +628,6 @@ app.post('/api/auth/profile/photo', authenticateToken, upload.single('profilePho
       }
     }
 
-    // Update user with new photo URL
     const user = await User.findByIdAndUpdate(
       req.user._id,
       { profilePhoto: result.secure_url },
@@ -746,10 +668,8 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
       });
     }
 
-    // Get user with password
     const user = await User.findById(req.user._id).select('+password');
     
-    // Verify current password
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ 
@@ -758,11 +678,9 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
       });
     }
 
-    // Hash new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-    // Update password
     user.password = hashedPassword;
     await user.save();
 
@@ -792,96 +710,63 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       });
     }
 
-    // Generate reset token
     const resetToken = jwt.sign(
       { userId: user._id }, 
       process.env.JWT_SECRET, 
       { expiresIn: '1h' }
     );
 
-    // Save reset token to user
     user.resetToken = resetToken;
-    user.resetTokenExpires = Date.now() + 3600000; // 1 hour
+    user.resetTokenExpires = Date.now() + 3600000;
     await user.save();
 
-    // Send email - simplified for now
     const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
     
     console.log('📧 Password reset requested for:', email);
-    console.log('🔗 Reset URL:', resetUrl);
-// In the /api/auth/send-otp endpoint, replace the email sending part:
 
-if (process.env.NODE_ENV === 'production') {
-  try {
-    const transporter = createEmailTransporter();
-    
-    if (!transporter) {
-      throw new Error('Email transporter not available');
-    }
-    
-    // Get sender email from env or use default
-    const senderEmail = process.env.EMAIL_SENDER || process.env.EMAIL_USER || 'noreply@vacholink.com';
-    
-    const mailOptions = {
-      from: `"VachoLink" <${senderEmail}>`,  // Use verified sender
-      to: email,
-      subject: 'Your VachoLink Verification Code',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background: #ffffff;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h2 style="color: #43b581; margin-bottom: 10px; font-size: 24px;">Verify Your Email</h2>
-            <p style="color: #666; font-size: 16px; line-height: 1.5;">Welcome to VachoLink! Use the code below to complete your signup.</p>
-          </div>
-          
-          <div style="background: linear-gradient(135deg, #43b581 0%, #3ba55d 100%); padding: 30px; text-align: center; border-radius: 10px; margin: 30px 0; box-shadow: 0 4px 12px rgba(67, 181, 129, 0.3);">
-            <p style="color: rgba(255,255,255,0.9); margin: 0 0 15px 0; font-size: 16px; font-weight: 500;">Your verification code:</p>
-            <div style="font-size: 42px; font-weight: bold; letter-spacing: 12px; color: white; font-family: 'Courier New', monospace; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; display: inline-block;">
-              ${otp}
+    // Send email via Resend
+    try {
+      const resend = createResendClient();
+      
+      if (resend) {
+        const senderEmail =  'onboarding@resend.dev' || process.env.RESEND_SENDER;
+        
+        await resend.emails.send({
+          from: `VachoLink <${senderEmail}>`,
+          to: [email],
+          subject: 'Password Reset Request - VachoLink',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #e8e8e8; border-radius: 12px; background: linear-gradient(135deg, #1a1c22 0%, #0a0a0a 100%); color: #ffffff;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <h2 style="color: #ffffff; font-size: 24px; font-weight: 700; margin-bottom: 10px;">Password Reset</h2>
+                <p style="color: #b9bbbe;">You requested to reset your password. Click the button below:</p>
+              </div>
+              
+              <div style="text-align: center; margin: 40px 0;">
+                <a href="${resetUrl}" style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #43b581 0%, #3ba55d 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(67, 181, 129, 0.3);">
+                  Reset Password
+                </a>
+              </div>
+              
+              <div style="color: #8e9297; font-size: 14px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(32, 34, 37, 0.8);">
+                <p>This link will expire in 1 hour.</p>
+                <p>If you didn't request this, please ignore this email.</p>
+                <p style="margin-top: 30px; font-size: 12px; color: #4f545c;">© ${new Date().getFullYear()} VachoLink. All rights reserved.</p>
+              </div>
             </div>
-          </div>
-          
-          <div style="color: #888; font-size: 14px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-            <p>This code will expire in 10 minutes.</p>
-            <p>If you didn't request this, please ignore this email.</p>
-            <p style="margin-top: 30px; font-size: 12px; color: #aaa;">© ${new Date().getFullYear()} VachoLink. All rights reserved.</p>
-          </div>
-        </div>
-      `,
-      text: `Your VachoLink verification code is: ${otp}. This code expires in 10 minutes.`
-    };
-
-    console.log('📤 Attempting to send email via SendGrid...');
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully! Message ID:', info.messageId);
-    
-    // In production, don't return OTP when email succeeds
-    res.json({
-      success: true,
-      message: 'Verification code sent to your email',
-      otp: undefined
-    });
-    
-  } catch (emailError) {
-    console.error('❌ SendGrid email failed:', emailError.message);
-    
-    // Fallback: Return OTP anyway
-    console.log('⚠️ SendGrid failed, returning OTP for manual entry:', otp);
-    
-    res.json({
-      success: true,
-      message: 'Email service temporarily unavailable. Use this code:',
-      otp: otp,
-      emailFailed: true
-    });
-  }
-
+          `,
+          text: `You requested to reset your password. Click this link: ${resetUrl}\n\nThis link expires in 1 hour.`
+        });
+        
+        console.log('✅ Password reset email sent via Resend');
+      }
+    } catch (emailError) {
+      console.error('❌ Failed to send password reset email:', emailError.message);
     }
 
     res.json({
       success: true,
-      message: 'Password reset email sent',
-      // In development, include the reset token for testing
-      resetToken: process.env.NODE_ENV !== 'production' ? resetToken : undefined
+      message: 'Password reset email sent'
     });
   } catch (error) {
     console.error('Forgot password error:', error);
@@ -911,7 +796,6 @@ app.post('/api/auth/reset-password', async (req, res) => {
       });
     }
 
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const user = await User.findOne({
@@ -927,11 +811,9 @@ app.post('/api/auth/reset-password', async (req, res) => {
       });
     }
 
-    // Hash new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-    // Update password and clear reset token
     user.password = hashedPassword;
     user.resetToken = undefined;
     user.resetTokenExpires = undefined;
@@ -955,7 +837,6 @@ app.post('/api/auth/reset-password', async (req, res) => {
 // 9. Logout
 app.post('/api/auth/logout', authenticateToken, async (req, res) => {
   try {
-    // Update user status to offline
     await User.findByIdAndUpdate(req.user._id, {
       online: false,
       lastSeen: new Date()
@@ -987,7 +868,6 @@ app.post('/api/chat/room', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check if participant exists
     const participant = await User.findById(participantId);
     if (!participant) {
       return res.status(404).json({ 
@@ -996,7 +876,6 @@ app.post('/api/chat/room', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check if room already exists between these two users
     let room = await Room.findOne({
       isGroup: false,
       participants: { 
@@ -1005,14 +884,12 @@ app.post('/api/chat/room', authenticateToken, async (req, res) => {
       }
     }).populate('participants', 'name email profilePhoto online lastSeen');
 
-    // If room doesn't exist, create it
     if (!room) {
       room = await Room.create({
         participants: [req.user._id, participantId],
         isGroup: false
       });
       
-      // Populate participants
       room = await Room.findById(room._id)
         .populate('participants', 'name email profilePhoto online lastSeen');
     }
@@ -1054,7 +931,7 @@ app.get('/api/chat/rooms', authenticateToken, async (req, res) => {
   }
 });
 
-// 2a. Delete a Chat Room (and its messages)
+// 2a. Delete a Chat Room
 app.delete('/api/chat/room/:roomId', authenticateToken, async (req, res) => {
   try {
     const { roomId } = req.params;
@@ -1085,7 +962,6 @@ app.get('/api/chat/messages/:roomId', authenticateToken, async (req, res) => {
     const { roomId } = req.params;
     const { page = 1, limit = 50 } = req.query;
 
-    // Check if user is participant of this room
     const room = await Room.findOne({
       _id: roomId,
       participants: req.user._id
@@ -1108,7 +984,6 @@ app.get('/api/chat/messages/:roomId', authenticateToken, async (req, res) => {
       .limit(parseInt(limit))
       .sort({ createdAt: 1 });
 
-    // Mark messages as read
     await Message.updateMany(
       {
         roomId,
@@ -1181,7 +1056,6 @@ const io = new Server(server, {
   }
 });
 
-// Socket.IO authentication middleware
 io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth.token;
@@ -1205,39 +1079,31 @@ io.use(async (socket, next) => {
   }
 });
 
-// Online users map
 const onlineUsers = new Map();
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.userId);
   
-  // Add user to online users
   onlineUsers.set(socket.userId.toString(), socket.id);
   
-  // Update user status in database
   User.findByIdAndUpdate(socket.userId, {
     online: true,
     lastSeen: new Date()
   }).exec();
 
-  // Notify others about user coming online
   socket.broadcast.emit('user-online', { userId: socket.userId });
 
-  // Join user to their personal room
   socket.join(`user:${socket.userId}`);
 
-  // Join chat rooms
   socket.on('join-room', (roomId) => {
     socket.join(roomId);
     console.log(`User ${socket.userId} joined room: ${roomId}`);
   });
 
-  // Handle sending messages
   socket.on('send-message', async (data) => {
     try {
       const { roomId, content, type = 'text', mediaUrl } = data;
       
-      // Create message in database
       const message = await Message.create({
         sender: socket.userId,
         content,
@@ -1246,23 +1112,18 @@ io.on('connection', (socket) => {
         roomId
       });
 
-      // Populate sender info
       const populatedMessage = await Message.findById(message._id)
         .populate('sender', 'name profilePhoto');
 
-      // Update room's last message
       await Room.findByIdAndUpdate(roomId, {
         lastMessage: message._id,
         updatedAt: new Date()
       });
 
-      // Emit message to room
       io.to(roomId).emit('receive-message', populatedMessage);
       
-      // Also send to sender for confirmation
       socket.emit('message-sent', populatedMessage);
 
-      // Notify other participants
       const room = await Room.findById(roomId);
       room.participants.forEach(participantId => {
         if (participantId.toString() !== socket.userId.toString()) {
@@ -1280,7 +1141,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle typing indicator
   socket.on('typing', (data) => {
     const { roomId, isTyping } = data;
     socket.to(roomId).emit('user-typing', {
@@ -1290,7 +1150,6 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Handle read receipts
   socket.on('mark-read', async (data) => {
     try {
       const { messageId } = data;
@@ -1311,20 +1170,16 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle disconnect
   socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.userId);
     
-    // Remove from online users
     onlineUsers.delete(socket.userId.toString());
     
-    // Update user status in database
     await User.findByIdAndUpdate(socket.userId, {
       online: false,
       lastSeen: new Date()
     });
 
-    // Notify others about user going offline
     socket.broadcast.emit('user-offline', { userId: socket.userId });
   });
 });
