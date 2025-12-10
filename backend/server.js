@@ -106,40 +106,46 @@ const upload = multer({
 });
 
 // Email transporter factory optimized for Render
+// Email transporter factory - SendGrid for production
 const createEmailTransporter = () => {
   console.log('📧 Creating email transporter...');
   
-  // Special Gmail configuration for Render
+  // Check if we're using SendGrid
+  if (process.env.SENDGRID_API_KEY) {
+    console.log('📧 Using SendGrid SMTP...');
+    
+    return nodemailer.createTransport({
+      host: 'smtp.sendgrid.net',
+      port: 587,
+      secure: false, // Use STARTTLS
+      auth: {
+        user: 'apikey', // This is LITERALLY the string 'apikey'
+        pass: process.env.SENDGRID_API_KEY
+      },
+      connectionTimeout: 10000,
+      socketTimeout: 15000,
+      tls: {
+        // Do NOT reject unauthorized certificates
+        rejectUnauthorized: false
+      }
+    });
+  }
+  
+  // Fallback to Gmail (for local development only)
+  console.log('📧 Using Gmail for development...');
+  
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.warn('⚠️ Gmail credentials not set');
+    return null;
+  }
+  
   return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // Use STARTTLS
-    requireTLS: true,
+    service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
-    },
-    // Optimized for cloud platforms
-    connectionTimeout: 30000, // 30 seconds
-    socketTimeout: 45000,     // 45 seconds
-    greetingTimeout: 10000,   // 10 seconds
-    // Important: Disable TLS certificate validation
-    tls: {
-      rejectUnauthorized: false
-    },
-    // Pooling can help with connections
-    pool: true,
-    maxConnections: 1,
-    maxMessages: 10
+    }
   });
-  console.log('📦 Returning OTP for testing:', otp);
-    
-    res.json({
-      success: true,
-      message: 'OTP generated (email service in setup)',
-      otp: otp,
-      note: 'Email service being configured. Use OTP above.'
-    });
 };
 
 // ========== MODELS ==========
@@ -777,33 +783,72 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     
     console.log('📧 Password reset requested for:', email);
     console.log('🔗 Reset URL:', resetUrl);
+// In the /api/auth/send-otp endpoint, replace the email sending part:
 
-    // Try to send email in production
-    if (process.env.NODE_ENV === 'production') {
-      try {
-        const transporter = createEmailTransporter();
-        
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: email,
-          subject: 'Password Reset Request - VachoLink',
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2>Password Reset Request</h2>
-              <p>You requested to reset your password. Click the link below to reset it:</p>
-              <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; background-color: #43b581; color: white; text-decoration: none; border-radius: 5px;">
-                Reset Password
-              </a>
-              <p>This link will expire in 1 hour.</p>
-              <p>If you didn't request this, please ignore this email.</p>
+if (process.env.NODE_ENV === 'production') {
+  try {
+    const transporter = createEmailTransporter();
+    
+    if (!transporter) {
+      throw new Error('Email transporter not available');
+    }
+    
+    // Get sender email from env or use default
+    const senderEmail = process.env.EMAIL_SENDER || process.env.EMAIL_USER || 'noreply@vacholink.com';
+    
+    const mailOptions = {
+      from: `"VachoLink" <${senderEmail}>`,  // Use verified sender
+      to: email,
+      subject: 'Your VachoLink Verification Code',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background: #ffffff;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h2 style="color: #43b581; margin-bottom: 10px; font-size: 24px;">Verify Your Email</h2>
+            <p style="color: #666; font-size: 16px; line-height: 1.5;">Welcome to VachoLink! Use the code below to complete your signup.</p>
+          </div>
+          
+          <div style="background: linear-gradient(135deg, #43b581 0%, #3ba55d 100%); padding: 30px; text-align: center; border-radius: 10px; margin: 30px 0; box-shadow: 0 4px 12px rgba(67, 181, 129, 0.3);">
+            <p style="color: rgba(255,255,255,0.9); margin: 0 0 15px 0; font-size: 16px; font-weight: 500;">Your verification code:</p>
+            <div style="font-size: 42px; font-weight: bold; letter-spacing: 12px; color: white; font-family: 'Courier New', monospace; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; display: inline-block;">
+              ${otp}
             </div>
-          `
-        });
-        console.log('✅ Password reset email sent to:', email);
-      } catch (emailError) {
-        console.error('❌ Failed to send password reset email:', emailError.message);
-        // Continue anyway - return success but log the error
-      }
+          </div>
+          
+          <div style="color: #888; font-size: 14px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+            <p>This code will expire in 10 minutes.</p>
+            <p>If you didn't request this, please ignore this email.</p>
+            <p style="margin-top: 30px; font-size: 12px; color: #aaa;">© ${new Date().getFullYear()} VachoLink. All rights reserved.</p>
+          </div>
+        </div>
+      `,
+      text: `Your VachoLink verification code is: ${otp}. This code expires in 10 minutes.`
+    };
+
+    console.log('📤 Attempting to send email via SendGrid...');
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Email sent successfully! Message ID:', info.messageId);
+    
+    // In production, don't return OTP when email succeeds
+    res.json({
+      success: true,
+      message: 'Verification code sent to your email',
+      otp: undefined
+    });
+    
+  } catch (emailError) {
+    console.error('❌ SendGrid email failed:', emailError.message);
+    
+    // Fallback: Return OTP anyway
+    console.log('⚠️ SendGrid failed, returning OTP for manual entry:', otp);
+    
+    res.json({
+      success: true,
+      message: 'Email service temporarily unavailable. Use this code:',
+      otp: otp,
+      emailFailed: true
+    });
+  }
+
     }
 
     res.json({
