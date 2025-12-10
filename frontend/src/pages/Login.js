@@ -161,7 +161,7 @@ export default function Login() {
         </div>
       )}
 
-      {/* Email/Password Form */}
+      
       <form onSubmit={isRegister ? handleRegister : handleLogin}>
         {isRegister && (
           <div style={{ marginBottom: 15 }}>
@@ -281,7 +281,7 @@ export default function Login() {
         <span style={{ color: "#666" }}>OR</span>
       </div>
 
-      {/* Google Login */}
+
       <div style={{ marginBottom: 20 }}>
         <GoogleLogin
           onSuccess={handleGoogleSuccess}
@@ -293,7 +293,7 @@ export default function Login() {
         />
       </div>
 
-      {/* Toggle between Login/Register */}
+      
       <div style={{ textAlign: "center" }}>
         <button
           onClick={() => {

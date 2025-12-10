@@ -202,7 +202,7 @@ const ChatPage = () => {
         justifyContent: 'center',
         alignItems: 'center'
       }}>
-        {/* Animated background for loading */}
+        
         <div style={{
           position: 'absolute',
           top: 0,
@@ -213,7 +213,7 @@ const ChatPage = () => {
           pointerEvents: 'none'
         }} />
         
-        {/* Loading stars */}
+        
         <div style={{
           position: 'absolute',
           top: 0,
@@ -249,7 +249,7 @@ const ChatPage = () => {
           alignItems: 'center',
           gap: '24px'
         }}>
-          {/* Animated logo */}
+          
           <div style={{
             width: '80px',
             height: '80px',
@@ -266,7 +266,7 @@ const ChatPage = () => {
             position: 'relative'
           }}>
             ꍡ
-            {/* Logo glow */}
+            
             <div style={{
               position: 'absolute',
               top: '-10px',
@@ -393,7 +393,7 @@ const ChatPage = () => {
       position: 'relative',
       overflow: 'hidden'
     }}>
-      {/* Animated Star Field Background */}
+      
       <div style={{
         position: 'absolute',
         top: 0,
@@ -405,7 +405,7 @@ const ChatPage = () => {
         zIndex: 0
       }} />
       
-      {/* Stars */}
+      
       <div style={{
         position: 'absolute',
         top: 0,
@@ -435,7 +435,7 @@ const ChatPage = () => {
         ))}
       </div>
       
-      {/* Comets */}
+      
       <div style={{
         position: 'absolute',
         top: 0,
@@ -465,7 +465,7 @@ const ChatPage = () => {
         ))}
       </div>
       
-      {/* Nebula/Glow Effects */}
+      
       <div style={{
         position: 'absolute',
         top: '20%',
@@ -494,7 +494,7 @@ const ChatPage = () => {
         zIndex: 0
       }} />
 
-      {/* Floating particles */}
+      
       <div style={{
         position: 'absolute',
         top: 0,
@@ -522,7 +522,7 @@ const ChatPage = () => {
         ))}
       </div>
       
-      {/* Components with higher z-index */}
+      
       <div style={{
         display: 'flex',
         width: '100%',
@@ -568,7 +568,7 @@ const ChatPage = () => {
               position: 'relative',
               overflow: 'hidden'
             }}>
-              {/* Welcome card glow */}
+              
               <div style={{
                 position: 'absolute',
                 top: 0,

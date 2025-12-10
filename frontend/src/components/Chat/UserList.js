@@ -76,7 +76,7 @@ const UserList = ({ onSelectUser, onClose }) => {
       zIndex: 2000,
       padding: '20px'
     }} onClick={onClose}>
-      {/* Star field background */}
+      
       <div style={{
         position: 'absolute',
         top: 0,
@@ -125,7 +125,7 @@ const UserList = ({ onSelectUser, onClose }) => {
         zIndex: 1,
         overflow: 'hidden'
       }} onClick={(e) => e.stopPropagation()}>
-        {/* Modal header with glow effect */}
+        
         <div style={{
           padding: '24px',
           borderBottom: '1px solid #202225',
@@ -189,7 +189,7 @@ const UserList = ({ onSelectUser, onClose }) => {
           </div>
         </div>
         
-        {/* Search input with glow */}
+        
         <div style={{
           padding: '20px',
           borderBottom: '1px solid #202225',
@@ -247,7 +247,7 @@ const UserList = ({ onSelectUser, onClose }) => {
           </div>
         </div>
         
-        {/* User list with subtle animations */}
+        
         <div style={{
           flex: 1,
           overflowY: 'auto',
@@ -302,7 +302,7 @@ const UserList = ({ onSelectUser, onClose }) => {
                 }}
                 onClick={() => onSelectUser(otherUser._id)}
               >
-                {/* Hover glow effect */}
+               
                 <div style={{
                   position: 'absolute',
                   top: 0,

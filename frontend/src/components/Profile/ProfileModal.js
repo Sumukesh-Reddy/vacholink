@@ -88,7 +88,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
         border: '1px solid #202225',
         position: 'relative'
       }} onClick={(e) => e.stopPropagation()}>
-        {/* Modal header */}
+        
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -135,7 +135,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Profile hero section */}
+        
         <div style={{
           display: 'flex',
           padding: '30px',
@@ -247,7 +247,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
           </div>
         </div>
 
-        {/* Profile form */}
+
         <form onSubmit={handleSubmit} style={{
           padding: '30px',
           display: 'grid',

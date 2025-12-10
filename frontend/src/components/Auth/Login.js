@@ -12,7 +12,7 @@ const Login = () => {
   const [stars, setStars] = useState([]);
 
   useEffect(() => {
-    // Generate smaller, more subtle stars
+    
     const generateStars = () => {
       const starCount = 400;
       const newStars = [];
@@ -61,7 +61,7 @@ const Login = () => {
       position: 'relative',
       overflow: 'hidden'
     }}>
-      {/* Subtle gradient background */}
+     
       <div style={{
         position: 'absolute',
         top: 0,
@@ -72,7 +72,7 @@ const Login = () => {
         pointerEvents: 'none'
       }} />
       
-      {/* Small twinkling stars */}
+      
       <div style={{
         position: 'absolute',
         top: 0,
@@ -100,7 +100,7 @@ const Login = () => {
         ))}
       </div>
       
-      {/* Floating particles */}
+      
       <div style={{
         position: 'absolute',
         top: 0,
@@ -127,7 +127,7 @@ const Login = () => {
         ))}
       </div>
       
-      {/* VachoLink logo glow */}
+      
       <div style={{
         position: 'absolute',
         top: '10%',
@@ -155,7 +155,7 @@ const Login = () => {
         position: 'relative',
         zIndex: 1
       }}>
-        {/* Card glow effect */}
+        
         <div style={{
           position: 'absolute',
           top: 0,
@@ -167,7 +167,7 @@ const Login = () => {
           pointerEvents: 'none'
         }} />
         
-        {/* Logo */}
+        
         <div style={{
           textAlign: 'center',
           marginBottom: '30px'

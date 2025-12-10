@@ -87,7 +87,7 @@ const ResetPassword = () => {
       position: 'relative',
       overflow: 'hidden'
     }}>
-      {/* Background gradient */}
+      
       <div style={{
         position: 'absolute',
         top: 0,
@@ -98,7 +98,7 @@ const ResetPassword = () => {
         pointerEvents: 'none'
       }} />
       
-      {/* Stars */}
+      
       <div style={{
         position: 'absolute',
         top: 0,
@@ -126,7 +126,7 @@ const ResetPassword = () => {
         ))}
       </div>
       
-      {/* Security glow */}
+      
       <div style={{
         position: 'absolute',
         top: '50%',
@@ -153,7 +153,7 @@ const ResetPassword = () => {
         position: 'relative',
         zIndex: 1
       }}>
-        {/* Card glow */}
+        
         <div style={{
           position: 'absolute',
           top: 0,
@@ -165,7 +165,7 @@ const ResetPassword = () => {
           pointerEvents: 'none'
         }} />
         
-        {/* Security icon */}
+        
         <div style={{
           textAlign: 'center',
           marginBottom: '30px'

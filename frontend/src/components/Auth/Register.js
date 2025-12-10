@@ -107,7 +107,7 @@ const Register = () => {
       position: 'relative',
       overflow: 'hidden'
     }}>
-      {/* Background gradient */}
+      
       <div style={{
         position: 'absolute',
         top: 0,
@@ -118,7 +118,7 @@ const Register = () => {
         pointerEvents: 'none'
       }} />
       
-      {/* Stars */}
+      
       <div style={{
         position: 'absolute',
         top: 0,
@@ -146,7 +146,7 @@ const Register = () => {
         ))}
       </div>
       
-      {/* Registration glow */}
+      
       <div style={{
         position: 'absolute',
         top: '50%',
@@ -173,7 +173,7 @@ const Register = () => {
         position: 'relative',
         zIndex: 1
       }}>
-        {/* Card glow */}
+        
         <div style={{
           position: 'absolute',
           top: 0,
@@ -185,7 +185,7 @@ const Register = () => {
           pointerEvents: 'none'
         }} />
         
-        {/* Progress steps */}
+        
         <div style={{
           display: 'flex',
           justifyContent: 'center',

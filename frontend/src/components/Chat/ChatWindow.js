@@ -78,7 +78,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
       position: 'relative',
       overflow: 'hidden'
     }}>
-      {/* Twinkling Stars Overlay */}
+      
       <div style={{
         position: 'absolute',
         top: 0,
@@ -108,7 +108,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
         ))}
       </div>
 
-      {/* Nebula/Star Field Background */}
+      
       <div style={{
         position: 'absolute',
         top: 0,
@@ -222,7 +222,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
         position: 'relative',
         zIndex: 1
       }}>
-        {/* Floating subtle stars in message area */}
+        
         <div style={{
           position: 'absolute',
           top: 0,
@@ -311,7 +311,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
                   position: 'relative',
                   overflow: 'hidden'
                 }}>
-                  {/* Message glow effect */}
+                  
                   <div style={{
                     position: 'absolute',
                     top: 0,
@@ -437,7 +437,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
             onMouseEnter={(e) => message.trim() && (e.target.style.background = '#677bc4')}
             onMouseLeave={(e) => message.trim() && (e.target.style.background = '#7289da')}
           >
-            {/* Send button star effect */}
+            
             <div style={{
               position: 'absolute',
               top: 0,

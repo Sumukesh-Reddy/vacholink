@@ -20,7 +20,7 @@ const ProfilePage = () => {
       padding: '40px 20px',
       position: 'relative'
     }}>
-      {/* Animated star overlay */}
+      
       <div style={{
         position: 'absolute',
         top: 0,

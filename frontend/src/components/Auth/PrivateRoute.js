@@ -43,7 +43,7 @@ const PrivateRoute = ({ children }) => {
         justifyContent: 'center',
         alignItems: 'center'
       }}>
-        {/* Background gradient */}
+        
         <div style={{
           position: 'absolute',
           top: 0,
@@ -54,7 +54,7 @@ const PrivateRoute = ({ children }) => {
           pointerEvents: 'none'
         }} />
         
-        {/* Stars */}
+        
         <div style={{
           position: 'absolute',
           top: 0,
@@ -82,7 +82,7 @@ const PrivateRoute = ({ children }) => {
           ))}
         </div>
         
-        {/* Loading glow */}
+
         <div style={{
           position: 'absolute',
           top: '50%',
@@ -97,7 +97,7 @@ const PrivateRoute = ({ children }) => {
           pointerEvents: 'none'
         }} />
 
-        {/* Loading content */}
+        
         <div style={{
           position: 'relative',
           zIndex: 1,
@@ -106,7 +106,7 @@ const PrivateRoute = ({ children }) => {
           alignItems: 'center',
           gap: '24px'
         }}>
-          {/* Logo */}
+          
           <div style={{
             width: '80px',
             height: '80px',
@@ -136,7 +136,7 @@ const PrivateRoute = ({ children }) => {
             }} />
           </div>
           
-          {/* Spinner */}
+          
           <div style={{
             position: 'relative',
             width: '60px',
@@ -167,7 +167,7 @@ const PrivateRoute = ({ children }) => {
             }} />
           </div>
           
-          {/* Text */}
+          
           <div style={{
             textAlign: 'center'
           }}>
@@ -187,7 +187,7 @@ const PrivateRoute = ({ children }) => {
             }}>Please wait while we verify your session</p>
           </div>
           
-          {/* Loading dots */}
+          
           <div style={{
             display: 'flex',
             gap: '8px',
