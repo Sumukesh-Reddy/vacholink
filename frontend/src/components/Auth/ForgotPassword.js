@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -13,7 +14,7 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/forgot-password`, {
+      const response = await axios.post(`${API_URL}/api/auth/forgot-password`, {
         email
       });
 

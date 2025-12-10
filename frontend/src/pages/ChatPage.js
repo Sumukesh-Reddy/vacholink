@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import ChatSidebar from '../components/Chat/ChatSidebar';
 import ChatWindow from '../components/Chat/ChatWindow';
 import UserList from '../components/Chat/UserList';
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
 const ChatPage = () => {
   const { user } = useAuth();
@@ -18,7 +19,7 @@ const ChatPage = () => {
 
   const fetchChatRooms = useCallback(async () => {
     try {
-      const response = await axios.get(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/chat/rooms`);
+      const response = await axios.get(`${API_URL}/api/chat/rooms`);
       setRooms(response.data.rooms);
       
       if (response.data.rooms.length > 0 && !selectedRoom) {
@@ -68,7 +69,7 @@ const ChatPage = () => {
 
   const fetchMessages = async (roomId) => {
     try {
-      const response = await axios.get(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/chat/messages/${roomId}`);
+      const response = await axios.get(`${API_URL}/api/chat/messages/${roomId}`);
       setMessages(response.data.messages);
     } catch (error) {
       toast.error('Failed to load messages');
@@ -101,7 +102,7 @@ const ChatPage = () => {
 
   const handleStartNewChat = async (userId) => {
     try {
-      const response = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/chat/room`, {
+      const response = await axios.post(`${API_URL}/api/chat/room`, {
         participantId: userId
       });
 
@@ -122,7 +123,7 @@ const ChatPage = () => {
     if (!window.confirm('Delete this chat and all its messages?')) return;
 
     try {
-      await axios.delete(`http://localhost:3001/api/chat/room/${roomId}`);
+      await axios.delete(`${API_URL}/api/chat/room/${roomId}`);
       setRooms(prev => prev.filter(r => r._id !== roomId));
       if (selectedRoom && selectedRoom._id === roomId) {
         setSelectedRoom(null);

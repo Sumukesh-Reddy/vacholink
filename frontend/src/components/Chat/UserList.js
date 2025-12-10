@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
 const UserList = ({ onSelectUser, onClose }) => {
   const [users, setUsers] = useState([]);
@@ -14,7 +15,7 @@ const UserList = ({ onSelectUser, onClose }) => {
     }
 
     try {
-      const response = await axios.get(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/users/search`, {
+      const response = await axios.get(`${API_URL}/api/users/search`, {
         params: { query: searchQuery }
       });
       setUsers(response.data.users);

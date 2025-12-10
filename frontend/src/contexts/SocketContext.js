@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
 const SocketContext = createContext({});
 
@@ -13,7 +14,7 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     if (token && user) {
-      const newSocket = io(`${"https://vacholink.onrender.com" || "http://localhost:3001"}`, {
+      const newSocket = io(`${API_URL}`, {
         auth: { token }
       });
 

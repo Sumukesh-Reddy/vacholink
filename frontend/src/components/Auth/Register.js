@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -33,7 +34,7 @@ const Register = () => {
     try {
       if (!otpSent) {
         // Send OTP
-        const res = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/send-otp`, {
+        const res = await axios.post(`${API_URL}/api/auth/send-otp`, {
           name,
           email,
           password
@@ -45,7 +46,7 @@ const Register = () => {
         }
       } else {
         // Verify OTP and complete registration
-        const verifyRes = await axios.post(`${"https://vacholink.onrender.com" || "http://localhost:3001"}/api/auth/verify-otp`, {
+        const verifyRes = await axios.post(`${API_URL}/api/auth/verify-otp`, {
           email,
           otp
         });
