@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import axios from 'axios';
-const API_URL =  process.env.REACT_APP_API_URL || "http://localhost:3001" ;
+// Default to production API if env not set
+const API_URL =  'https://vacholink.onrender.com' || process.env.REACT_APP_API_URL ;
 
 const Register = () => {
   const [name, setName] = useState('');
