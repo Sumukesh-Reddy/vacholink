@@ -7,20 +7,31 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const [stars, setStars] = useState([]);
+  const [isMobile, setIsMobile] = useState(false);
   
   const otherParticipant = room.participants?.find(p => p._id !== user?._id) || room.participants?.[0];
 
   useEffect(() => {
-    // Generate random stars
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    // Generate responsive stars
     const generateStars = () => {
-      const starCount = 500;
+      const starCount = isMobile ? 200 : 500;
       const newStars = [];
       for (let i = 0; i < starCount; i++) {
         newStars.push({
           id: i,
           x: Math.random() * 100,
           y: Math.random() * 100,
-          size: Math.random() * 2 + 1,
+          size: Math.random() * (isMobile ? 1.5 : 2) + 1,
           opacity: Math.random() * 0.5 + 0.2,
           delay: Math.random() * 3,
           duration: Math.random() * 2 + 1
@@ -30,7 +41,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
     };
     
     generateStars();
-  }, []);
+  }, [isMobile]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -70,140 +81,52 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
   };
 
   return (
-    <div style={{
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      background: '#36393f',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
+    <div className="chat-window-container">
       
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        pointerEvents: 'none',
-        zIndex: 0
-      }}>
+      <div className="chat-stars-bg">
         {stars.map(star => (
           <div
             key={star.id}
+            className="chat-star-bg"
             style={{
-              position: 'absolute',
               left: `${star.x}%`,
               top: `${star.y}%`,
               width: `${star.size}px`,
               height: `${star.size}px`,
-              background: '#ffffff',
-              borderRadius: '50%',
               opacity: star.opacity,
-              boxShadow: '0 0 4px rgba(255, 255, 255, 0.8)',
-              animation: `twinkle ${star.duration}s infinite ${star.delay}s alternate`,
-              filter: 'blur(0.5px)'
+              animationDelay: `${star.delay}s`,
+              animationDuration: `${star.duration}s`
             }}
           />
         ))}
       </div>
 
       
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'radial-gradient(ellipse at center, transparent 40%, rgba(54, 57, 63, 0.9) 100%)',
-        pointerEvents: 'none',
-        zIndex: 0
-      }} />
+      <div className="chat-bg-overlay" />
 
-      <div style={{
-        padding: '16px 24px',
-        borderBottom: '1px solid #202225',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '16px',
-        background: '#2f3136',
-        position: 'relative',
-        zIndex: 1
-      }}>
-        <div style={{
-          position: 'relative',
-          flexShrink: 0
-        }}>
-          <img
-            src={otherParticipant?.profilePhoto || `https://ui-avatars.com/api/?name=${otherParticipant?.name}&background=7289da&color=fff`}
-            alt={otherParticipant?.name}
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              objectFit: 'cover',
-              border: '2px solid #202225'
-            }}
-          />
-          {otherParticipant?.online && (
-            <div style={{
-              position: 'absolute',
-              bottom: '2px',
-              right: '2px',
-              width: '12px',
-              height: '12px',
-              background: '#3ba55d',
-              border: '2px solid #2f3136',
-              borderRadius: '50%',
-              animation: 'pulse 2s infinite'
-            }}></div>
-          )}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{
-            fontWeight: '700',
-            fontSize: '18px',
-            color: '#ffffff',
-            marginBottom: '4px',
-            textShadow: '0 1px 2px rgba(0,0,0,0.5)'
-          }}>{otherParticipant?.name || 'Unknown User'}</div>
-          <div style={{
-            fontSize: '14px',
-            color: '#8e9297',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}>
-            <div style={{
-              width: '8px',
-              height: '8px',
-              background: otherParticipant?.online ? '#3ba55d' : '#747f8d',
-              borderRadius: '50%',
-              animation: otherParticipant?.online ? 'pulse 2s infinite' : 'none'
-            }}></div>
-            
+      <div className="chat-header">
+        <div className="header-user">
+          <div className="user-avatar-container">
+            <img
+              src={otherParticipant?.profilePhoto || `https://ui-avatars.com/api/?name=${otherParticipant?.name}&background=7289da&color=fff`}
+              alt={otherParticipant?.name}
+              className="user-avatar"
+            />
+            {otherParticipant?.online && (
+              <div className="online-indicator" />
+            )}
+          </div>
+          <div className="user-info">
+            <div className="user-name">{otherParticipant?.name || 'Unknown User'}</div>
+            <div className="user-status">
+              <div className={`status-dot ${otherParticipant?.online ? 'online' : 'offline'}`} />
+              
+            </div>
           </div>
         </div>
-        <div style={{
-          display: 'flex',
-          gap: '8px'
-        }}>
+        <div className="header-actions">
           <button 
-            style={{
-              background: '#ed4245',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '4px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              position: 'relative',
-              zIndex: 1
-            }}
-            onMouseEnter={(e) => e.target.style.background = '#d84040'}
-            onMouseLeave={(e) => e.target.style.background = '#ed4245'}
+            className="delete-button"
             onClick={onDeleteRoom}
           >
             Delete chat
@@ -211,40 +134,18 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
         </div>
       </div>
       
-      <div style={{
-        flex: 1,
-        padding: '24px',
-        overflowY: 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-        background: 'transparent',
-        position: 'relative',
-        zIndex: 1
-      }}>
+      <div className="messages-container">
         
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          pointerEvents: 'none',
-          overflow: 'hidden'
-        }}>
-          {Array.from({ length: 15 }).map((_, i) => (
+        <div className="messages-particles">
+          {Array.from({ length: isMobile ? 8 : 15 }).map((_, i) => (
             <div
               key={i}
+              className="messages-particle"
               style={{
-                position: 'absolute',
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
-                width: '1px',
-                height: '1px',
-                background: 'rgba(255, 255, 255, 0.3)',
-                borderRadius: '50%',
-                animation: `float ${Math.random() * 5 + 3}s infinite ${Math.random() * 2}s alternate`,
-                boxShadow: '0 0 3px rgba(255, 255, 255, 0.3)'
+                animationDelay: `${Math.random() * 2}s`,
+                animationDuration: `${Math.random() * 5 + 3}s`
               }}
             />
           ))}
@@ -258,206 +159,471 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
           return (
             <div 
               key={msg._id} 
-              style={{
-                display: 'flex',
-                gap: '12px',
-                maxWidth: '70%',
-                alignSelf: isOwnMessage ? 'flex-end' : 'flex-start',
-                flexDirection: isOwnMessage ? 'row-reverse' : 'row',
-                position: 'relative',
-                zIndex: 1
-              }}
+              className={`message-wrapper ${isOwnMessage ? 'own-message' : 'other-message'}`}
             >
               {!isOwnMessage && (
                 <img
                   src={msg.sender?.profilePhoto || `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=7289da&color=fff`}
                   alt={msg.sender?.name}
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '2px solid #202225',
-                    alignSelf: 'flex-end',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-                  }}
+                  className="message-avatar"
                 />
               )}
               
-              <div>
+              <div className="message-content-wrapper">
                 {!isOwnMessage && (
-                  <div style={{
-                    color: '#ffffff',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    marginBottom: '4px',
-                    marginLeft: isOwnMessage ? '0' : '8px',
-                    marginRight: isOwnMessage ? '8px' : '0',
-                    textShadow: '0 1px 2px rgba(0,0,0,0.5)'
-                  }}>
+                  <div className="message-sender">
                     {msg.sender?.name}
                   </div>
                 )}
-                <div style={{
-                  padding: '12px 16px',
-                  borderRadius: '18px',
-                  maxWidth: '100%',
-                  wordWrap: 'break-word',
-                  background: isOwnMessage ? '#7289da' : '#40444b',
-                  color: isOwnMessage ? 'white' : '#dcddde',
-                  borderBottomRightRadius: isOwnMessage ? '4px' : '18px',
-                  borderBottomLeftRadius: isOwnMessage ? '18px' : '4px',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}>
+                <div className="message-bubble">
                   
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: isOwnMessage 
-                      ? 'radial-gradient(circle at 30% 30%, rgba(114, 137, 218, 0.1), transparent 70%)'
-                      : 'radial-gradient(circle at 70% 30%, rgba(255, 255, 255, 0.05), transparent 70%)',
-                    pointerEvents: 'none'
-                  }} />
+                  <div className="message-glow" />
                   
                   {msg.type === 'image' && msg.mediaUrl ? (
                     <img 
                       src={msg.mediaUrl} 
                       alt="attachment" 
-                      style={{
-                        maxWidth: '300px',
-                        maxHeight: '300px',
-                        borderRadius: '8px',
-                        marginBottom: '8px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-                      }}
+                      className="message-image"
                     />
                   ) : (
-                    <span style={{
-                      textShadow: isOwnMessage ? '0 1px 2px rgba(0,0,0,0.3)' : 'none'
-                    }}>
+                    <span className="message-text">
                       {msg.content}
                     </span>
                   )}
                 </div>
-                <div style={{
-                  fontSize: '11px',
-                  color: '#8e9297',
-                  marginTop: '4px',
-                  textAlign: isOwnMessage ? 'right' : 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
-                  textShadow: '0 1px 1px rgba(0,0,0,0.3)'
-                }}>
+                <div className="message-info">
                   {isToday 
                     ? messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     : messageDate.toLocaleDateString() + ' ' + messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                   }
                   {isOwnMessage && msg.read && (
-                    <span style={{
-                      color: '#3ba55d',
-                      fontSize: '12px',
-                      animation: 'readPulse 2s infinite'
-                    }}>✓✓</span>
+                    <span className="read-indicator">✓✓</span>
                   )}
                 </div>
               </div>
             </div>
           );
         })}
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} className="messages-end" />
       </div>
       
-      <div style={{
-        padding: '20px 24px',
-        borderTop: '1px solid #202225',
-        background: '#2f3136',
-        position: 'relative',
-        zIndex: 1
-      }}>
-        <form onSubmit={handleSubmit} style={{
-          display: 'flex',
-          gap: '12px'
-        }}>
+      <div className="message-input-container">
+        <form onSubmit={handleSubmit} className="message-form">
           <textarea
             value={message}
             onChange={handleChange}
             onKeyPress={handleKeyPress}
             placeholder="Type a message..."
-            style={{
-              flex: 1,
-              padding: '12px 16px',
-              background: '#40444b',
-              border: '1px solid #202225',
-              borderRadius: '8px',
-              color: '#dcddde',
-              fontSize: '16px',
-              resize: 'none',
-              maxHeight: '120px',
-              minHeight: '48px',
-              fontFamily: "'Whitney', sans-serif",
-              transition: 'all 0.2s',
-              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)'
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = '#7289da';
-              e.target.style.boxShadow = 'inset 0 2px 4px rgba(0,0,0,0.2), 0 0 0 2px rgba(114, 137, 218, 0.2)';
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = '#202225';
-              e.target.style.boxShadow = 'inset 0 2px 4px rgba(0,0,0,0.2)';
-            }}
+            className="message-textarea"
             rows="1"
           />
           <button 
             type="submit" 
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              background: message.trim() ? '#7289da' : '#4f545c',
-              color: 'white',
-              border: 'none',
-              cursor: message.trim() ? 'pointer' : 'not-allowed',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              transition: 'all 0.2s',
-              position: 'relative',
-              overflow: 'hidden'
-            }}
+            className="send-button"
             disabled={!message.trim()}
-            onMouseEnter={(e) => message.trim() && (e.target.style.background = '#677bc4')}
-            onMouseLeave={(e) => message.trim() && (e.target.style.background = '#7289da')}
           >
             
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, transparent 70%)',
-              animation: message.trim() ? 'sendPulse 2s infinite' : 'none'
-            }} />
-            <span style={{
-              fontSize: '18px',
-              transform: 'rotate(360deg)',
-              position: 'relative',
-              zIndex: 1
-            }}>➤</span>
+            <div className="send-button-glow" />
+            <span className="send-icon">➤</span>
           </button>
         </form>
       </div>
 
       <style>{`
+        /* Base styles */
+        .chat-window-container {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          background: #36393f;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .chat-stars-bg {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        .chat-star-bg {
+          position: absolute;
+          background: #ffffff;
+          border-radius: 50%;
+          box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+          animation: twinkle infinite alternate;
+          filter: blur(0.5px);
+        }
+
+        .chat-bg-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: radial-gradient(ellipse at center, transparent 40%, rgba(54, 57, 63, 0.9) 100%);
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        /* Header */
+        .chat-header {
+          padding: 16px 24px;
+          border-bottom: 1px solid #202225;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background: #2f3136;
+          position: relative;
+          z-index: 1;
+          min-height: 72px;
+        }
+
+        .header-user {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .user-avatar-container {
+          position: relative;
+          flex-shrink: 0;
+        }
+
+        .user-avatar {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 2px solid #202225;
+        }
+
+        .online-indicator {
+          position: absolute;
+          bottom: 2px;
+          right: 2px;
+          width: 12px;
+          height: 12px;
+          background: #3ba55d;
+          border: 2px solid #2f3136;
+          border-radius: 50%;
+          animation: pulse 2s infinite;
+        }
+
+        .user-info {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .user-name {
+          font-weight: 700;
+          font-size: 18px;
+          color: #ffffff;
+          margin-bottom: 4px;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .user-status {
+          font-size: 14px;
+          color: #8e9297;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .status-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+
+        .status-dot.online {
+          background: #3ba55d;
+          animation: pulse 2s infinite;
+        }
+
+        .status-dot.offline {
+          background: #747f8d;
+        }
+
+        .header-actions {
+          display: flex;
+          gap: 8px;
+          flex-shrink: 0;
+        }
+
+        .delete-button {
+          background: #ed4245;
+          color: white;
+          border: none;
+          padding: 8px 16px;
+          border-radius: 4px;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+          position: relative;
+          z-index: 1;
+          min-height: 36px;
+          white-space: nowrap;
+        }
+
+        .delete-button:hover {
+          background: #d84040;
+        }
+
+        /* Messages container */
+        .messages-container {
+          flex: 1;
+          padding: 24px;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          background: transparent;
+          position: relative;
+          z-index: 1;
+        }
+
+        .messages-particles {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          pointer-events: none;
+          overflow: hidden;
+        }
+
+        .messages-particle {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          background: rgba(255, 255, 255, 0.3);
+          border-radius: 50%;
+          box-shadow: 0 0 3px rgba(255, 255, 255, 0.3);
+          animation: float infinite alternate;
+        }
+
+        /* Message styling */
+        .message-wrapper {
+          display: flex;
+          gap: 12px;
+          max-width: 70%;
+          align-self: flex-start;
+          flex-direction: row;
+          position: relative;
+          z-index: 1;
+        }
+
+        .message-wrapper.own-message {
+          align-self: flex-end;
+          flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 2px solid #202225;
+          align-self: flex-end;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          flex-shrink: 0;
+        }
+
+        .message-content-wrapper {
+          max-width: 100%;
+        }
+
+        .message-sender {
+          color: #ffffff;
+          font-size: 12px;
+          font-weight: 600;
+          margin-bottom: 4px;
+          margin-left: 8px;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .own-message .message-sender {
+          margin-left: 0;
+          margin-right: 8px;
+          text-align: right;
+        }
+
+        .message-bubble {
+          padding: 12px 16px;
+          border-radius: 18px;
+          max-width: 100%;
+          word-wrap: break-word;
+          background: #40444b;
+          color: #dcddde;
+          border-bottom-right-radius: 4px;
+          border-bottom-left-radius: 18px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .own-message .message-bubble {
+          background: #7289da;
+          color: white;
+          border-bottom-right-radius: 18px;
+          border-bottom-left-radius: 4px;
+        }
+
+        .message-glow {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: radial-gradient(circle at 70% 30%, rgba(255, 255, 255, 0.05), transparent 70%);
+          pointer-events: none;
+        }
+
+        .own-message .message-glow {
+          background: radial-gradient(circle at 30% 30%, rgba(114, 137, 218, 0.1), transparent 70%);
+        }
+
+        .message-image {
+          max-width: 300px;
+          max-height: 300px;
+          border-radius: 8px;
+          margin-bottom: 8px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .message-text {
+          text-shadow: none;
+        }
+
+        .own-message .message-text {
+          text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .message-info {
+          font-size: 11px;
+          color: #8e9297;
+          margin-top: 4px;
+          text-align: left;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          justify-content: flex-start;
+          text-shadow: 0 1px 1px rgba(0,0,0,0.3);
+        }
+
+        .own-message .message-info {
+          text-align: right;
+          justify-content: flex-end;
+        }
+
+        .read-indicator {
+          color: #3ba55d;
+          font-size: 12px;
+          animation: readPulse 2s infinite;
+        }
+
+        .messages-end {
+          height: 1px;
+        }
+
+        /* Input area */
+        .message-input-container {
+          padding: 20px 24px;
+          border-top: 1px solid #202225;
+          background: #2f3136;
+          position: relative;
+          z-index: 1;
+        }
+
+        .message-form {
+          display: flex;
+          gap: 12px;
+          align-items: flex-end;
+        }
+
+        .message-textarea {
+          flex: 1;
+          padding: 12px 16px;
+          background: #40444b;
+          border: 1px solid #202225;
+          border-radius: 8px;
+          color: #dcddde;
+          font-size: 16px;
+          resize: none;
+          max-height: 120px;
+          min-height: 48px;
+          font-family: "'Whitney', sans-serif";
+          transition: all 0.2s;
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+          box-sizing: border-box;
+        }
+
+        .message-textarea:focus {
+          border-color: #7289da;
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.2), 0 0 0 2px rgba(114, 137, 218, 0.2);
+          outline: none;
+        }
+
+        .send-button {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: #4f545c;
+          color: white;
+          border: none;
+          cursor: not-allowed;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          transition: all 0.2s;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .send-button:not(:disabled) {
+          background: #7289da;
+          cursor: pointer;
+        }
+
+        .send-button:not(:disabled):hover {
+          background: #677bc4;
+        }
+
+        .send-button-glow {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, transparent 70%);
+          animation: sendPulse 2s infinite;
+        }
+
+        .send-button:disabled .send-button-glow {
+          animation: none;
+        }
+
+        .send-icon {
+          font-size: 18px;
+          transform: rotate(360deg);
+          position: relative;
+          z-index: 1;
+        }
+
+        /* Animations */
         @keyframes twinkle {
           0%, 100% { 
             opacity: 0.2; 
@@ -512,7 +678,154 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
             opacity: 0.6;
           }
         }
-        
+
+        /* Mobile styles */
+        @media (max-width: 768px) {
+          .chat-header {
+            padding: 12px 16px;
+            min-height: 64px;
+          }
+
+          .user-avatar {
+            width: 40px;
+            height: 40px;
+          }
+
+          .user-name {
+            font-size: 16px;
+          }
+
+          .user-status {
+            font-size: 12px;
+          }
+
+          .delete-button {
+            padding: 6px 12px;
+            font-size: 13px;
+            min-height: 32px;
+          }
+
+          .messages-container {
+            padding: 16px;
+            gap: 12px;
+          }
+
+          .message-wrapper {
+            max-width: 85%;
+          }
+
+          .message-bubble {
+            padding: 10px 14px;
+            font-size: 14px;
+          }
+
+          .message-image {
+            max-width: 250px;
+            max-height: 250px;
+          }
+
+          .message-info {
+            font-size: 10px;
+          }
+
+          .message-input-container {
+            padding: 16px;
+          }
+
+          .message-textarea {
+            padding: 10px 14px;
+            font-size: 15px;
+            min-height: 44px;
+          }
+
+          .send-button {
+            width: 44px;
+            height: 44px;
+          }
+
+          .send-icon {
+            font-size: 16px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .chat-header {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+            padding: 12px;
+          }
+
+          .header-user {
+            width: 100%;
+          }
+
+          .header-actions {
+            width: 100%;
+          }
+
+          .delete-button {
+            width: 100%;
+          }
+
+          .messages-container {
+            padding: 12px;
+            gap: 10px;
+          }
+
+          .message-wrapper {
+            max-width: 90%;
+          }
+
+          .message-bubble {
+            padding: 8px 12px;
+            font-size: 13px;
+          }
+
+          .message-image {
+            max-width: 200px;
+            max-height: 200px;
+          }
+
+          .message-input-container {
+            padding: 12px;
+          }
+
+          .message-form {
+            flex-direction: column;
+            gap: 10px;
+          }
+
+          .message-textarea {
+            width: 100%;
+          }
+
+          .send-button {
+            align-self: flex-end;
+            width: 40px;
+            height: 40px;
+          }
+        }
+
+        /* Tablet styles */
+        @media (min-width: 769px) and (max-width: 1024px) {
+          .chat-header {
+            padding: 14px 20px;
+          }
+
+          .messages-container {
+            padding: 20px;
+          }
+
+          .message-bubble {
+            font-size: 15px;
+          }
+
+          .message-image {
+            max-width: 280px;
+          }
+        }
+
         /* Custom scrollbar */
         .messages-container::-webkit-scrollbar {
           width: 8px;
@@ -530,6 +843,12 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
         
         .messages-container::-webkit-scrollbar-thumb:hover {
           background: #7289da;
+        }
+
+        @media (max-width: 768px) {
+          .messages-container::-webkit-scrollbar {
+            width: 4px;
+          }
         }
       `}</style>
     </div>

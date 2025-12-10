@@ -8,16 +8,17 @@ const PrivateRoute = ({ children }) => {
 
   useEffect(() => {
     if (loading) {
-      // Generate stars only when loading
+      // Generate responsive stars
       const generateStars = () => {
-        const starCount = 40;
+        const isMobile = window.innerWidth <= 768;
+        const starCount = isMobile ? 20 : 40;
         const newStars = [];
         for (let i = 0; i < starCount; i++) {
           newStars.push({
             id: i,
             x: Math.random() * 100,
             y: Math.random() * 100,
-            size: Math.random() * 2 + 0.5,
+            size: Math.random() * (isMobile ? 1.5 : 2) + (isMobile ? 0.3 : 0.5),
             opacity: Math.random() * 0.2 + 0.1,
             delay: Math.random() * 4,
             duration: Math.random() * 2 + 1,
@@ -28,187 +29,230 @@ const PrivateRoute = ({ children }) => {
       };
       
       generateStars();
+      window.addEventListener('resize', generateStars);
+      return () => window.removeEventListener('resize', generateStars);
     }
   }, [loading]);
 
   if (loading) {
     return (
-      <div style={{
-        height: '100vh',
-        background: '#0a0a0a',
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
+      <div className="private-loading-container">
+        {/* Background gradient */}
+        <div className="private-bg-gradient" />
         
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'radial-gradient(ellipse at center, #1a1c22 0%, #0a0a0a 70%)',
-          pointerEvents: 'none'
-        }} />
-        
-        
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          pointerEvents: 'none'
-        }}>
+        {/* Stars */}
+        <div className="private-stars">
           {stars.map(star => (
             <div
               key={star.id}
+              className="private-star"
               style={{
-                position: 'absolute',
                 left: `${star.x}%`,
                 top: `${star.y}%`,
                 width: `${star.size}px`,
                 height: `${star.size}px`,
                 background: star.type === 'blue' ? '#7289da' : '#ffffff',
-                borderRadius: '50%',
                 opacity: star.opacity,
                 animation: `privateTwinkle ${star.duration}s infinite ${star.delay}s alternate`,
-                filter: 'blur(0.3px)'
               }}
             />
           ))}
         </div>
         
+        {/* Glow effect */}
+        <div className="private-glow" />
 
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '200px',
-          height: '200px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(114, 137, 218, 0.1) 0%, transparent 70%)',
-          filter: 'blur(30px)',
-          animation: 'privateGlow 4s ease-in-out infinite alternate',
-          pointerEvents: 'none'
-        }} />
-
-        
-        <div style={{
-          position: 'relative',
-          zIndex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '24px'
-        }}>
-          
-          <div style={{
-            width: '80px',
-            height: '80px',
-            background: 'linear-gradient(135deg, #7289da 0%, #5b6eae 100%)',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: '36px',
-            animation: 'privateLogoFloat 3s ease-in-out infinite',
-            boxShadow: '0 0 30px rgba(114, 137, 218, 0.5)',
-            position: 'relative'
-          }}>
+        {/* Loading content */}
+        <div className="private-content">
+          {/* Logo */}
+          <div className="private-logo">
             ꍡ
-            <div style={{
-              position: 'absolute',
-              top: '-10px',
-              left: '-10px',
-              right: '-10px',
-              bottom: '-10px',
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(114, 137, 218, 0.2) 0%, transparent 70%)',
-              animation: 'privateLogoPulse 2s ease-in-out infinite',
-              pointerEvents: 'none'
-            }} />
+            <div className="private-logo-pulse" />
           </div>
           
-          
-          <div style={{
-            position: 'relative',
-            width: '60px',
-            height: '60px'
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              border: '3px solid rgba(32, 34, 37, 0.3)',
-              borderTop: '3px solid #7289da',
-              borderRadius: '50%',
-              animation: 'privateSpin 1.5s linear infinite',
-              boxShadow: '0 0 20px rgba(114, 137, 218, 0.3)'
-            }} />
-            <div style={{
-              position: 'absolute',
-              top: '10px',
-              left: '10px',
-              right: '10px',
-              bottom: '10px',
-              border: '3px solid rgba(32, 34, 37, 0.2)',
-              borderBottom: '3px solid #43b581',
-              borderRadius: '50%',
-              animation: 'privateSpinReverse 2s linear infinite'
-            }} />
+          {/* Spinner */}
+          <div className="private-spinner">
+            <div className="private-spinner-outer" />
+            <div className="private-spinner-inner" />
           </div>
           
-          
-          <div style={{
-            textAlign: 'center'
-          }}>
-            <p style={{ 
-              color: '#ffffff', 
-              fontFamily: "'Whitney', sans-serif",
-              fontSize: '18px',
-              fontWeight: '600',
-              marginBottom: '8px',
-              textShadow: '0 2px 4px rgba(0,0,0,0.5)'
-            }}>Securing your connection</p>
-            <p style={{ 
-              color: '#b9bbbe', 
-              fontFamily: "'Whitney', sans-serif",
-              fontSize: '14px',
-              opacity: 0.8
-            }}>Please wait while we verify your session</p>
+          {/* Text */}
+          <div className="private-text">
+            <p className="private-text-title">Securing your connection</p>
+            <p className="private-text-subtitle">Please wait while we verify your session</p>
           </div>
           
-          
-          <div style={{
-            display: 'flex',
-            gap: '8px',
-            marginTop: '20px'
-          }}>
+          {/* Loading dots */}
+          <div className="private-dots">
             {[0, 1, 2].map(i => (
               <div
                 key={i}
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  background: '#7289da',
-                  borderRadius: '50%',
-                  animation: `privateDotPulse 1.2s ease-in-out infinite ${i * 0.2}s`
-                }}
+                className="private-dot"
+                style={{ animationDelay: `${i * 0.2}s` }}
               />
             ))}
           </div>
         </div>
 
         <style>{`
+          /* Base styles */
+          .private-loading-container {
+            height: 100vh;
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+          }
+
+          .private-bg-gradient {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(ellipse at center, #1a1c22 0%, #0a0a0a 70%);
+            pointer-events: none;
+          }
+
+          .private-stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+          }
+
+          .private-star {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(0.3px);
+          }
+
+          .private-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(114, 137, 218, 0.1) 0%, transparent 70%);
+            filter: blur(30px);
+            animation: privateGlow 4s ease-in-out infinite alternate;
+            pointer-events: none;
+          }
+
+          /* Content container */
+          .private-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+          }
+
+          /* Logo */
+          .private-logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #7289da 0%, #5b6eae 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 36px;
+            animation: privateLogoFloat 3s ease-in-out infinite;
+            box-shadow: 0 0 30px rgba(114, 137, 218, 0.5);
+            position: relative;
+          }
+
+          .private-logo-pulse {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(114, 137, 218, 0.2) 0%, transparent 70%);
+            animation: privateLogoPulse 2s ease-in-out infinite;
+            pointer-events: none;
+          }
+
+          /* Spinner */
+          .private-spinner {
+            position: relative;
+            width: 60px;
+            height: 60px;
+          }
+
+          .private-spinner-outer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 3px solid rgba(32, 34, 37, 0.3);
+            border-top: 3px solid #7289da;
+            border-radius: 50%;
+            animation: privateSpin 1.5s linear infinite;
+            box-shadow: 0 0 20px rgba(114, 137, 218, 0.3);
+          }
+
+          .private-spinner-inner {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            border: 3px solid rgba(32, 34, 37, 0.2);
+            border-bottom: 3px solid #43b581;
+            border-radius: 50%;
+            animation: privateSpinReverse 2s linear infinite;
+          }
+
+          /* Text */
+          .private-text-title {
+            color: #ffffff;
+            font-family: "'Whitney', sans-serif";
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+          }
+
+          .private-text-subtitle {
+            color: #b9bbbe;
+            font-family: "'Whitney', sans-serif";
+            font-size: 14px;
+            opacity: 0.8;
+          }
+
+          /* Dots */
+          .private-dots {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+          }
+
+          .private-dot {
+            width: 8px;
+            height: 8px;
+            background: #7289da;
+            border-radius: 50%;
+            animation: privateDotPulse 1.2s ease-in-out infinite;
+          }
+
+          /* Animations */
           @keyframes privateTwinkle {
             0%, 100% { 
               opacity: 0.1; 
@@ -240,7 +284,7 @@ const PrivateRoute = ({ children }) => {
             }
             66% { 
               transform: scale(1.03) rotate(-5deg);
-              boxShadow: 0 0 35px rgba(114, 137, 218, 0.55);
+              box-shadow: 0 0 35px rgba(114, 137, 218, 0.55);
             }
           }
           
@@ -273,6 +317,93 @@ const PrivateRoute = ({ children }) => {
             50% { 
               transform: scale(1.3);
               opacity: 1;
+            }
+          }
+
+          /* Mobile styles */
+          @media (max-width: 768px) {
+            .private-content {
+              gap: 20px;
+              padding: 0 20px;
+            }
+
+            .private-logo {
+              width: 60px;
+              height: 60px;
+              font-size: 28px;
+            }
+
+            .private-logo-pulse {
+              top: -8px;
+              left: -8px;
+              right: -8px;
+              bottom: -8px;
+            }
+
+            .private-spinner {
+              width: 50px;
+              height: 50px;
+            }
+
+            .private-spinner-outer {
+              border-width: 2px;
+            }
+
+            .private-spinner-inner {
+              top: 8px;
+              left: 8px;
+              right: 8px;
+              bottom: 8px;
+              border-width: 2px;
+            }
+
+            .private-text-title {
+              font-size: 16px;
+            }
+
+            .private-text-subtitle {
+              font-size: 13px;
+            }
+
+            .private-dots {
+              margin-top: 15px;
+            }
+
+            .private-dot {
+              width: 6px;
+              height: 6px;
+            }
+
+            .private-glow {
+              width: 150px;
+              height: 150px;
+              filter: blur(20px);
+            }
+          }
+
+          /* Small mobile */
+          @media (max-width: 480px) {
+            .private-content {
+              gap: 16px;
+            }
+
+            .private-logo {
+              width: 50px;
+              height: 50px;
+              font-size: 24px;
+            }
+
+            .private-spinner {
+              width: 40px;
+              height: 40px;
+            }
+
+            .private-text-title {
+              font-size: 15px;
+            }
+
+            .private-text-subtitle {
+              font-size: 12px;
             }
           }
         `}</style>
