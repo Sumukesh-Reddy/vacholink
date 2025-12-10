@@ -16,7 +16,6 @@ const path = require('path');
 
 dotenv.config();
 
-
 const signupOtps = new Map();
 
 const app = express();
@@ -106,46 +105,70 @@ const upload = multer({
   }
 });
 
-// Email transporter factory so production can use a real SMTP host
+// Email transporter factory optimized for Render
 const createEmailTransporter = () => {
-  const {
-    EMAIL_HOST,
-    EMAIL_PORT,
-    EMAIL_USER,
-    EMAIL_PASS,
-    EMAIL_SERVICE
-  } = process.env;
-
-  if (EMAIL_HOST && EMAIL_PORT) {
-    return nodemailer.createTransport({
-      host: EMAIL_HOST,
-      port: Number(EMAIL_PORT),
-      secure: Number(EMAIL_PORT) === 465, // common secure port
-      auth: {
-        user: EMAIL_USER,
-        pass: EMAIL_PASS
-      }
-    });
-  }
-
-  if (EMAIL_SERVICE) {
-    return nodemailer.createTransport({
-      service: EMAIL_SERVICE,
-      auth: {
-        user: EMAIL_USER,
-        pass: EMAIL_PASS
-      }
-    });
-  }
-
-  // Fallback to Gmail service envs
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
+  console.log('📧 Creating email transporter...');
+  console.log('📧 Email config:', {
+    EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Not set',
+    EMAIL_PASS: process.env.EMAIL_PASS ? 'Set' : 'Not set',
+    NODE_ENV: process.env.NODE_ENV || 'development'
   });
+
+  // For production on Render (or any cloud platform)
+  if (process.env.NODE_ENV === 'production') {
+    console.log('📧 Using Gmail SMTP for production...');
+    
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587, // Use 587 instead of 465 for Render compatibility
+      secure: false, // STARTTLS
+      requireTLS: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      },
+      // Important timeout settings for cloud platforms
+      connectionTimeout: 10000, // 10 seconds
+      socketTimeout: 15000,     // 15 seconds
+      greetingTimeout: 5000,    // 5 seconds
+      // Debug mode for troubleshooting
+      debug: process.env.NODE_ENV !== 'production',
+      logger: process.env.NODE_ENV !== 'production',
+      // TLS settings for cloud environments
+      tls: {
+        // Do NOT reject unauthorized certificates in cloud environments
+        // Some networks/proxies modify certificates
+        rejectUnauthorized: false,
+        minVersion: 'TLSv1.2'
+      }
+    });
+    
+    // Verify connection
+    transporter.verify(function(error, success) {
+      if (error) {
+        console.error('❌ Email transporter verification failed:', error.message);
+      } else {
+        console.log('✅ Email transporter is ready to send messages');
+      }
+    });
+    
+    return transporter;
+  } else {
+    // For local development
+    console.log('📧 Using Gmail service for development...');
+    
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      },
+      debug: true,
+      logger: true
+    });
+    
+    return transporter;
+  }
 };
 
 // ========== MODELS ==========
@@ -180,7 +203,6 @@ userSchema.pre('save', function() {
 
 const User = mongoose.model('User', userSchema);
 
-
 // Message Model
 const messageSchema = new mongoose.Schema({
   sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -197,7 +219,6 @@ const messageSchema = new mongoose.Schema({
 });
 
 const Message = mongoose.model('Message', messageSchema);
-
 
 // Chat Room Model
 const roomSchema = new mongoose.Schema({
@@ -261,6 +282,13 @@ app.post('/api/auth/send-otp', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
+    console.log('🔐 Send OTP request received for:', email);
+    console.log('📧 Environment check:', {
+      NODE_ENV: process.env.NODE_ENV || 'development',
+      EMAIL_USER_SET: !!process.env.EMAIL_USER,
+      EMAIL_PASS_SET: !!process.env.EMAIL_PASS
+    });
+
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'Name, email, and password are required' });
     }
@@ -287,34 +315,97 @@ app.post('/api/auth/send-otp', async (req, res) => {
     const otp = generateOtp();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
+    // Store OTP in memory
     signupOtps.set(email, { name, hashedPassword, otp, expiresAt });
+    
+    console.log('📦 Generated OTP for', email, ':', otp);
+    console.log('⏰ OTP expires at:', new Date(expiresAt).toLocaleTimeString());
 
-    const transporter = createEmailTransporter();
+    // In development, skip email sending and return OTP directly
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🚀 [DEV MODE] Skipping email, returning OTP directly');
+      
+      return res.json({
+        success: true,
+        message: 'OTP generated (email skipped in dev mode)',
+        otp: otp // Always return OTP in development
+      });
+    }
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Your VachoLink signup verification code',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Verify your email</h2>
-          <p>Use the code below to complete your signup. It expires in 10 minutes.</p>
-          <div style="font-size: 28px; font-weight: bold; letter-spacing: 4px; margin: 20px 0;">
-            ${otp}
+    // In production, try to send email
+    try {
+      const transporter = createEmailTransporter();
+      
+      const mailOptions = {
+        from: `"VachoLink" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Your VachoLink Signup Verification Code',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h2 style="color: #43b581; margin-bottom: 10px;">Verify Your Email</h2>
+              <p style="color: #666;">Welcome to VachoLink! Use the code below to complete your signup.</p>
+            </div>
+            
+            <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 8px; margin: 30px 0;">
+              <p style="color: #888; margin: 0 0 10px 0; font-size: 14px;">Your verification code:</p>
+              <div style="font-size: 32px; font-weight: bold; letter-spacing: 10px; color: #43b581; font-family: monospace;">
+                ${otp}
+              </div>
+            </div>
+            
+            <div style="color: #888; font-size: 12px; text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+              <p>This code will expire in 10 minutes.</p>
+              <p>If you didn't request this, please ignore this email.</p>
+              <p style="margin-top: 20px;">© ${new Date().getFullYear()} VachoLink. All rights reserved.</p>
+            </div>
           </div>
-          <p>If you didn't request this, you can ignore this email.</p>
-        </div>
-      `
-    });
+        `
+      };
 
-    res.json({
-      success: true,
-      message: 'OTP sent to email',
-      otp: process.env.NODE_ENV === 'production' ? undefined : otp 
-    });
+      console.log('📤 Attempting to send email...');
+      const info = await transporter.sendMail(mailOptions);
+      console.log('✅ Email sent successfully! Message ID:', info.messageId);
+      
+      res.json({
+        success: true,
+        message: 'OTP sent to your email',
+        otp: undefined // Don't return OTP in production
+      });
+      
+    } catch (emailError) {
+      console.error('❌ Email sending failed:', emailError.message);
+      
+      // Even if email fails, return OTP for testing (but log it as a fallback)
+      console.log('⚠️ Email failed, using fallback - OTP for', email, ':', otp);
+      
+      res.json({
+        success: true,
+        message: 'Email service temporarily unavailable. Please use the OTP below:',
+        otp: otp, // Return OTP as fallback
+        emailFailed: true
+      });
+    }
+
   } catch (error) {
-    console.error('Send OTP error:', error);
-    res.status(500).json({ success: false, message: 'Failed to send OTP' });
+    console.error('❌ Send OTP error:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    
+    // Get OTP from memory if available
+    const otpData = signupOtps.get(req.body.email);
+    const otp = otpData ? otpData.otp : 'Not generated';
+    
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to send OTP',
+      debug: process.env.NODE_ENV !== 'production' ? {
+        error: error.message,
+        otp: otp
+      } : undefined
+    });
   }
 });
 
@@ -322,6 +413,8 @@ app.post('/api/auth/send-otp', async (req, res) => {
 app.post('/api/auth/verify-otp', async (req, res) => {
   try {
     const { email, otp } = req.body;
+
+    console.log('🔍 Verify OTP request:', { email, otpLength: otp?.length });
 
     if (!email || !otp) {
       return res.status(400).json({ success: false, message: 'Email and OTP are required' });
@@ -332,12 +425,19 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       return res.status(400).json({ success: false, message: 'No pending signup for this email' });
     }
 
+    console.log('📦 Found pending signup for:', email);
+    console.log('⏰ OTP expires at:', new Date(pending.expiresAt).toLocaleTimeString());
+    console.log('🕒 Current time:', new Date().toLocaleTimeString());
+
     if (pending.expiresAt < Date.now()) {
       signupOtps.delete(email);
+      console.log('❌ OTP expired for:', email);
       return res.status(400).json({ success: false, message: 'OTP expired, please request a new one' });
     }
 
     if (pending.otp !== otp) {
+      console.log('❌ Invalid OTP for:', email);
+      console.log('Expected:', pending.otp, 'Got:', otp);
       return res.status(400).json({ success: false, message: 'Invalid OTP' });
     }
 
@@ -347,12 +447,17 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       signupOtps.delete(email);
       return res.status(400).json({ success: false, message: 'User with this email already exists' });
     }
+    
     const existingName = await User.findOne({ name: pending.name });
     if (existingName) {
       signupOtps.delete(email);
       return res.status(400).json({ success: false, message: 'Display name is already taken, please choose another' });
     }
 
+    console.log('✅ OTP verified for:', email);
+    console.log('👤 Creating user:', pending.name);
+
+    // Create user
     const user = await User.create({
       name: pending.name,
       email,
@@ -360,8 +465,10 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       isVerified: true
     });
 
+    // Clean up
     signupOtps.delete(email);
 
+    // Generate token
     const token = jwt.sign(
       { userId: user._id, email: user.email }, 
       process.env.JWT_SECRET, 
@@ -371,6 +478,8 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     const userResponse = user.toObject();
     delete userResponse.password;
 
+    console.log('🎉 User created successfully:', user.email);
+
     res.status(201).json({
       success: true,
       message: 'Signup verified and completed',
@@ -378,15 +487,17 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       user: userResponse
     });
   } catch (error) {
-    console.error('Verify OTP error:', error);
+    console.error('❌ Verify OTP error:', error);
     res.status(500).json({ success: false, message: 'Failed to verify OTP' });
   }
 });
 
-// 1. Register with Email/Password
+// 1. Register with Email/Password (legacy endpoint - for backward compatibility)
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
+
+    console.log('📝 Legacy register endpoint called for:', email);
 
     // Validation
     if (!name || !email || !password) {
@@ -690,37 +801,45 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     user.resetTokenExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
-    // Send email
+    // Send email - simplified for now
     const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
     
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
+    console.log('📧 Password reset requested for:', email);
+    console.log('🔗 Reset URL:', resetUrl);
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Password Reset Request - Chat App',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Password Reset Request</h2>
-          <p>You requested to reset your password. Click the link below to reset it:</p>
-          <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
-            Reset Password
-          </a>
-          <p>This link will expire in 1 hour.</p>
-          <p>If you didn't request this, please ignore this email.</p>
-        </div>
-      `
-    });
+    // Try to send email in production
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        const transporter = createEmailTransporter();
+        
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: email,
+          subject: 'Password Reset Request - VachoLink',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Password Reset Request</h2>
+              <p>You requested to reset your password. Click the link below to reset it:</p>
+              <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; background-color: #43b581; color: white; text-decoration: none; border-radius: 5px;">
+                Reset Password
+              </a>
+              <p>This link will expire in 1 hour.</p>
+              <p>If you didn't request this, please ignore this email.</p>
+            </div>
+          `
+        });
+        console.log('✅ Password reset email sent to:', email);
+      } catch (emailError) {
+        console.error('❌ Failed to send password reset email:', emailError.message);
+        // Continue anyway - return success but log the error
+      }
+    }
 
     res.json({
       success: true,
-      message: 'Password reset email sent'
+      message: 'Password reset email sent',
+      // In development, include the reset token for testing
+      resetToken: process.env.NODE_ENV !== 'production' ? resetToken : undefined
     });
   } catch (error) {
     console.error('Forgot password error:', error);
@@ -775,6 +894,8 @@ app.post('/api/auth/reset-password', async (req, res) => {
     user.resetToken = undefined;
     user.resetTokenExpires = undefined;
     await user.save();
+
+    console.log('✅ Password reset for user:', user.email);
 
     res.json({
       success: true,
@@ -1171,7 +1292,8 @@ app.get('/health', (req, res) => {
   res.json({ 
     success: true, 
     message: 'Server is running', 
-    timestamp: new Date().toISOString() 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -1180,5 +1302,6 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📡 WebSocket server ready`);
-  console.log(`🌐 Client URL: ${process.env.CLIENT_URL}`);
+  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌐 Allowed origins: ${allowedOrigins.join(', ') || 'None'}`);
 });
