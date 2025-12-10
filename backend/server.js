@@ -105,45 +105,46 @@ const upload = multer({
   }
 });
 
-// Email transporter factory optimized for Render
-// Email transporter factory - SendGrid for production
-const createEmailTransporter = () => {
-  console.log('📧 Creating email transporter...');
-  
-  // Check if we're using SendGrid
-  if (process.env.SENDGRID_API_KEY) {
-    console.log('📧 Using SendGrid SMTP...');
+// Email transporter factory with SendGrid primary, Gmail fallback
+const createEmailTransporter = (useGmail = false) => {
+  // Force Gmail if requested
+  if (useGmail || !process.env.SENDGRID_API_KEY) {
+    console.log('📧 Using Gmail SMTP...');
+    
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.warn('⚠️ Gmail credentials not set');
+      return null;
+    }
     
     return nodemailer.createTransport({
-      host: 'smtp.sendgrid.net',
-      port: 587,
-      secure: false, // Use STARTTLS
+      service: 'gmail',
       auth: {
-        user: 'apikey', // This is LITERALLY the string 'apikey'
-        pass: process.env.SENDGRID_API_KEY
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
       },
       connectionTimeout: 10000,
       socketTimeout: 15000,
       tls: {
-        // Do NOT reject unauthorized certificates
         rejectUnauthorized: false
       }
     });
   }
   
-  // Fallback to Gmail (for local development only)
-  console.log('📧 Using Gmail for development...');
-  
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn('⚠️ Gmail credentials not set');
-    return null;
-  }
+  // Try SendGrid first
+  console.log('📧 Using SendGrid SMTP...');
   
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.sendgrid.net',
+    port: 587,
+    secure: false,
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
+      user: 'apikey',
+      pass: process.env.SENDGRID_API_KEY
+    },
+    connectionTimeout: 8000, // Shorter timeout for faster fallback
+    socketTimeout: 10000,
+    tls: {
+      rejectUnauthorized: false
     }
   });
 };
@@ -309,57 +310,82 @@ app.post('/api/auth/send-otp', async (req, res) => {
       });
     }
 
-    // In production, try to send email
-    try {
-      const transporter = createEmailTransporter();
-      
-      const mailOptions = {
-        from: `"VachoLink" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: 'Your VachoLink Signup Verification Code',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h2 style="color: #43b581; margin-bottom: 10px;">Verify Your Email</h2>
-              <p style="color: #666;">Welcome to VachoLink! Use the code below to complete your signup.</p>
-            </div>
-            
-            <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 8px; margin: 30px 0;">
-              <p style="color: #888; margin: 0 0 10px 0; font-size: 14px;">Your verification code:</p>
-              <div style="font-size: 32px; font-weight: bold; letter-spacing: 10px; color: #43b581; font-family: monospace;">
-                ${otp}
-              </div>
-            </div>
-            
-            <div style="color: #888; font-size: 12px; text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-              <p>This code will expire in 10 minutes.</p>
-              <p>If you didn't request this, please ignore this email.</p>
-              <p style="margin-top: 20px;">© ${new Date().getFullYear()} VachoLink. All rights reserved.</p>
+    // In production, try to send email with fallback
+    const mailOptions = {
+      from: `"VachoLink" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Your VachoLink Signup Verification Code',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h2 style="color: #43b581; margin-bottom: 10px;">Verify Your Email</h2>
+            <p style="color: #666;">Welcome to VachoLink! Use the code below to complete your signup.</p>
+          </div>
+          
+          <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 8px; margin: 30px 0;">
+            <p style="color: #888; margin: 0 0 10px 0; font-size: 14px;">Your verification code:</p>
+            <div style="font-size: 32px; font-weight: bold; letter-spacing: 10px; color: #43b581; font-family: monospace;">
+              ${otp}
             </div>
           </div>
-        `
-      };
+          
+          <div style="color: #888; font-size: 12px; text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+            <p>This code will expire in 10 minutes.</p>
+            <p>If you didn't request this, please ignore this email.</p>
+            <p style="margin-top: 20px;">© ${new Date().getFullYear()} VachoLink. All rights reserved.</p>
+          </div>
+        </div>
+      `
+    };
 
-      console.log('📤 Attempting to send email...');
-      const info = await transporter.sendMail(mailOptions);
-      console.log('✅ Email sent successfully! Message ID:', info.messageId);
-      
+    let emailSent = false;
+    let lastError = null;
+
+    // Try SendGrid first (if configured)
+    if (process.env.SENDGRID_API_KEY) {
+      try {
+        console.log('📤 Attempting SendGrid...');
+        const sendGridTransporter = createEmailTransporter(false);
+        const info = await sendGridTransporter.sendMail(mailOptions);
+        console.log('✅ Email sent via SendGrid! Message ID:', info.messageId);
+        emailSent = true;
+      } catch (sendGridError) {
+        console.error('❌ SendGrid failed:', sendGridError.message);
+        lastError = sendGridError;
+        // Fall through to try Gmail
+      }
+    }
+
+    // Fallback to Gmail if SendGrid failed or not configured
+    if (!emailSent && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      try {
+        console.log('📤 Attempting Gmail fallback...');
+        const gmailTransporter = createEmailTransporter(true);
+        if (gmailTransporter) {
+          const info = await gmailTransporter.sendMail(mailOptions);
+          console.log('✅ Email sent via Gmail! Message ID:', info.messageId);
+          emailSent = true;
+        }
+      } catch (gmailError) {
+        console.error('❌ Gmail also failed:', gmailError.message);
+        lastError = gmailError;
+      }
+    }
+
+    if (emailSent) {
       res.json({
         success: true,
         message: 'OTP sent to your email',
-        otp: undefined // Don't return OTP in production
+        otp: undefined
       });
-      
-    } catch (emailError) {
-      console.error('❌ Email sending failed:', emailError.message);
-      
-      // Even if email fails, return OTP for testing (but log it as a fallback)
-      console.log('⚠️ Email failed, using fallback - OTP for', email, ':', otp);
+    } else {
+      console.error('❌ All email methods failed. Last error:', lastError?.message);
+      console.log('⚠️ Returning OTP as fallback:', otp);
       
       res.json({
         success: true,
         message: 'Email service temporarily unavailable. Please use the OTP below:',
-        otp: otp, // Return OTP as fallback
+        otp: otp,
         emailFailed: true
       });
     }
