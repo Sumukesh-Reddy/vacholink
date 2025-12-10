@@ -41,7 +41,13 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('/*', cors(corsOptions));
+// Handle preflight without path-to-regexp wildcards (Express 5)
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    return cors(corsOptions)(req, res, next);
+  }
+  next();
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
