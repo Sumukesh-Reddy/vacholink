@@ -106,6 +106,48 @@ const upload = multer({
   }
 });
 
+// Email transporter factory so production can use a real SMTP host
+const createEmailTransporter = () => {
+  const {
+    EMAIL_HOST,
+    EMAIL_PORT,
+    EMAIL_USER,
+    EMAIL_PASS,
+    EMAIL_SERVICE
+  } = process.env;
+
+  if (EMAIL_HOST && EMAIL_PORT) {
+    return nodemailer.createTransport({
+      host: EMAIL_HOST,
+      port: Number(EMAIL_PORT),
+      secure: Number(EMAIL_PORT) === 465, // common secure port
+      auth: {
+        user: EMAIL_USER,
+        pass: EMAIL_PASS
+      }
+    });
+  }
+
+  if (EMAIL_SERVICE) {
+    return nodemailer.createTransport({
+      service: EMAIL_SERVICE,
+      auth: {
+        user: EMAIL_USER,
+        pass: EMAIL_PASS
+      }
+    });
+  }
+
+  // Fallback to Gmail service envs
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
+};
+
 // ========== MODELS ==========
 
 // User Model
@@ -247,13 +289,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
 
     signupOtps.set(email, { name, hashedPassword, otp, expiresAt });
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
+    const transporter = createEmailTransporter();
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
