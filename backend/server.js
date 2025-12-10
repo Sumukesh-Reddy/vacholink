@@ -108,67 +108,38 @@ const upload = multer({
 // Email transporter factory optimized for Render
 const createEmailTransporter = () => {
   console.log('📧 Creating email transporter...');
-  console.log('📧 Email config:', {
-    EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Not set',
-    EMAIL_PASS: process.env.EMAIL_PASS ? 'Set' : 'Not set',
-    NODE_ENV: process.env.NODE_ENV || 'development'
+  
+  // Special Gmail configuration for Render
+  return nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // Use STARTTLS
+    requireTLS: true,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    },
+    // Optimized for cloud platforms
+    connectionTimeout: 30000, // 30 seconds
+    socketTimeout: 45000,     // 45 seconds
+    greetingTimeout: 10000,   // 10 seconds
+    // Important: Disable TLS certificate validation
+    tls: {
+      rejectUnauthorized: false
+    },
+    // Pooling can help with connections
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 10
   });
-
-  // For production on Render (or any cloud platform)
-  if (process.env.NODE_ENV === 'production') {
-    console.log('📧 Using Gmail SMTP for production...');
+  console.log('📦 Returning OTP for testing:', otp);
     
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587, // Use 587 instead of 465 for Render compatibility
-      secure: false, // STARTTLS
-      requireTLS: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      },
-      // Important timeout settings for cloud platforms
-      connectionTimeout: 10000, // 10 seconds
-      socketTimeout: 15000,     // 15 seconds
-      greetingTimeout: 5000,    // 5 seconds
-      // Debug mode for troubleshooting
-      debug: process.env.NODE_ENV !== 'production',
-      logger: process.env.NODE_ENV !== 'production',
-      // TLS settings for cloud environments
-      tls: {
-        // Do NOT reject unauthorized certificates in cloud environments
-        // Some networks/proxies modify certificates
-        rejectUnauthorized: false,
-        minVersion: 'TLSv1.2'
-      }
+    res.json({
+      success: true,
+      message: 'OTP generated (email service in setup)',
+      otp: otp,
+      note: 'Email service being configured. Use OTP above.'
     });
-    
-    // Verify connection
-    transporter.verify(function(error, success) {
-      if (error) {
-        console.error('❌ Email transporter verification failed:', error.message);
-      } else {
-        console.log('✅ Email transporter is ready to send messages');
-      }
-    });
-    
-    return transporter;
-  } else {
-    // For local development
-    console.log('📧 Using Gmail service for development...');
-    
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      },
-      debug: true,
-      logger: true
-    });
-    
-    return transporter;
-  }
 };
 
 // ========== MODELS ==========
