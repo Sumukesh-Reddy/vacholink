@@ -16,14 +16,13 @@ const path = require('path');
 
 dotenv.config();
 
-// In-memory OTP store for signup verification
-const signupOtps = new Map(); // key: email, value: { name, hashedPassword, otp, expiresAt }
 
-// Initialize Express
+const signupOtps = new Map();
+
 const app = express();
 app.use(helmet());
 
-// Allow multiple client origins via comma-separated CLIENT_URL
+
 const allowedOrigins = (process.env.CLIENT_URL || '').split(',').map(o => o.trim()).filter(Boolean);
 app.use(cors({
   origin: allowedOrigins.length ? allowedOrigins : process.env.CLIENT_URL,
@@ -48,7 +47,7 @@ if (!mongoUri) {
 }
 
 mongoose.connect(mongoUri)
-  .then(() => console.log('🟢 MongoDB connected'))
+  .then(() => console.log(' MongoDB connected'))
   .catch(err => {
     console.error('❌ MongoDB connection error:', err);
     process.exit(1);
@@ -253,7 +252,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
     res.json({
       success: true,
       message: 'OTP sent to email',
-      otp: process.env.NODE_ENV === 'production' ? undefined : otp // helpful for local dev
+      otp: process.env.NODE_ENV === 'production' ? undefined : otp 
     });
   } catch (error) {
     console.error('Send OTP error:', error);

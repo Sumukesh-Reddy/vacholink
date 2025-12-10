@@ -13,7 +13,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
   useEffect(() => {
     // Generate random stars
     const generateStars = () => {
-      const starCount = 1000;
+      const starCount = 500;
       const newStars = [];
       for (let i = 0; i < starCount; i++) {
         newStars.push({
