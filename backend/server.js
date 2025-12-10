@@ -21,6 +21,8 @@ const signupOtps = new Map();
 
 const app = express();
 app.use(helmet());
+// Running behind a proxy (Render); trust X-Forwarded-* so rate limiting works
+app.set('trust proxy', 1);
 
 // Robust CORS: allow comma-separated CLIENT_URL values
 const allowedOrigins = (process.env.CLIENT_URL || '')
