@@ -22,8 +22,11 @@ const signupOtps = new Map(); // key: email, value: { name, hashedPassword, otp,
 // Initialize Express
 const app = express();
 app.use(helmet());
+
+// Allow multiple client origins via comma-separated CLIENT_URL
+const allowedOrigins = (process.env.CLIENT_URL || '').split(',').map(o => o.trim()).filter(Boolean);
 app.use(cors({
-  origin: process.env.CLIENT_URL,
+  origin: allowedOrigins.length ? allowedOrigins : process.env.CLIENT_URL,
   credentials: true
 }));
 app.use(express.json());
