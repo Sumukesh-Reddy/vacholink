@@ -1,25 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onBack }) => {  // Added onBack prop
+const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onBack, isMobile }) => {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const [stars, setStars] = useState([]);
-  const [isMobile, setIsMobile] = useState(false);
   
   const otherParticipant = room.participants?.find(p => p._id !== user?._id) || room.participants?.[0];
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   useEffect(() => {
     // Generate responsive stars
@@ -131,7 +120,9 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
             <div className="user-name">{otherParticipant?.name || 'Unknown User'}</div>
             <div className="user-status">
               <div className={`status-dot ${otherParticipant?.online ? 'online' : 'offline'}`} />
-              
+              <span className="status-text">
+                {otherParticipant?.online ? 'Online' : 'Offline'}
+              </span>
             </div>
           </div>
         </div>
@@ -249,6 +240,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           background: #36393f;
           position: relative;
           overflow: hidden;
+          height: 100%;
         }
 
         .chat-stars-bg {
@@ -388,6 +380,10 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
 
         .status-dot.offline {
           background: #747f8d;
+        }
+
+        .status-text {
+          font-size: 14px;
         }
 
         .header-actions {
