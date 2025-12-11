@@ -113,6 +113,9 @@ const ChatPage = () => {
       if (isMobile) {
         setShowSidebarOnMobile(false);
       }
+    } else if (socket && !selectedRoom) {
+      // Leave all rooms when no room is selected (going back)
+      socket.emit('leave-room');
     }
   }, [socket, selectedRoom, isMobile]);
 
@@ -217,11 +220,13 @@ const ChatPage = () => {
   };
 
   const handleBackToChats = () => {
-    setSelectedRoom(null);
-    // On mobile, show sidebar when going back
+    // On mobile, ensure sidebar is shown first
     if (isMobile) {
       setShowSidebarOnMobile(true);
     }
+    // Clear selected room and messages
+    setSelectedRoom(null);
+    setMessages([]);
   };
 
   if (loading) {
@@ -308,8 +313,8 @@ const ChatPage = () => {
         />
       )}
       
-      {/* Mobile: Show sidebar when no chat is selected or when explicitly showing */}
-      {isMobile && (showSidebarOnMobile || !selectedRoom) && (
+      {/* Mobile: Show sidebar when no chat is selected */}
+      {isMobile && !selectedRoom && (
         <ChatSidebar
           rooms={rooms}
           selectedRoom={selectedRoom}
@@ -610,7 +615,7 @@ const ChatPage = () => {
         /* Ensure proper z-index for mobile views */
         @media (max-width: 768px) {
           .chat-sidebar {
-            z-index: 10;
+            z-index: 30;
             position: absolute;
             top: 0;
             left: 0;

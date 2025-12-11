@@ -98,7 +98,11 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
         {isMobile && onBack && (
           <button 
             className="mobile-back-button"
-            onClick={onBack}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onBack();
+            }}
             aria-label="Back to chats"
           >
             ←
