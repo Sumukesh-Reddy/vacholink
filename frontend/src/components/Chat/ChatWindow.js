@@ -178,7 +178,8 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
               <div className="message-content-wrapper">
                 {!isOwnMessage && (
                   <div className="message-sender">
-                    {msg.sender?.name}
+                    {msg.sender?.name}<br/>
+                    <h3>{msg.sender?.lastSeen}</h3>
                   </div>
                 )}
                 <div className="message-bubble">
