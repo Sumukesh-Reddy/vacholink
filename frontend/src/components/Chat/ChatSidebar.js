@@ -129,6 +129,8 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
           flex-direction: column;
           height: 100%;
           flex-shrink: 0;
+          position: relative;
+          z-index: 10;
         }
 
         /* Header */
@@ -209,6 +211,9 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
           background: transparent;
           border-left: 4px solid transparent;
           min-height: 76px;
+          position: relative;
+          z-index: 1;
+          gap: 12px;
         }
 
         .room-item:hover {
@@ -248,6 +253,10 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
         .room-info {
           flex: 1;
           min-width: 0;
+          overflow: hidden;
+          position: relative;
+          z-index: 1;
+          max-width: calc(100% - 80px);
         }
 
         .room-header {
@@ -255,6 +264,7 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
           align-items: center;
           gap: 8px;
           margin-bottom: 4px;
+          min-width: 0;
         }
 
         .room-name {
@@ -264,6 +274,11 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          position: relative;
+          z-index: 2;
+          display: block;
+          width: 100%;
+          line-height: 1.4;
         }
 
         .online-dot {
@@ -280,6 +295,10 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          position: relative;
+          z-index: 2;
+          display: block;
+          width: 100%;
         }
 
         .room-meta {
@@ -287,7 +306,9 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
           flex-direction: column;
           align-items: flex-end;
           flex-shrink: 0;
-          margin-left: 8px;
+          position: relative;
+          z-index: 1;
+          min-width: 50px;
         }
 
         .room-time {

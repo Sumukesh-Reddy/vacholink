@@ -290,15 +290,16 @@ const UserList = ({ onSelectUser, onClose }) => {
                   borderBottom: '1px solid #202225',
                   animation: `slideIn ${0.1 * index + 0.3}s ease-out`,
                   position: 'relative',
-                  overflow: 'hidden'
+                  overflow: 'visible',
+                  zIndex: 1
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.background = '#202225';
-                  e.target.style.transform = 'translateX(4px)';
+                  e.currentTarget.style.background = '#202225';
+                  e.currentTarget.style.transform = 'translateX(4px)';
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.background = 'transparent';
-                  e.target.style.transform = 'translateX(0)';
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.transform = 'translateX(0)';
                 }}
                 onClick={() => onSelectUser(otherUser._id)}
               >
@@ -311,12 +312,14 @@ const UserList = ({ onSelectUser, onClose }) => {
                   bottom: 0,
                   background: 'linear-gradient(90deg, transparent, rgba(114, 137, 218, 0.05), transparent)',
                   opacity: 0,
-                  transition: 'opacity 0.3s'
+                  transition: 'opacity 0.3s',
+                  zIndex: 0,
+                  pointerEvents: 'none'
                 }} />
                 
                 <img
-                  src={otherUser.profilePhoto || `https://ui-avatars.com/api/?name=${otherUser.name}&background=7289da&color=fff`}
-                  alt={otherUser.name}
+                  src={otherUser.profilePhoto || `https://ui-avatars.com/api/?name=${otherUser.name || 'User'}&background=7289da&color=fff`}
+                  alt={otherUser.name || 'User'}
                   style={{
                     width: '48px',
                     height: '48px',
@@ -325,28 +328,47 @@ const UserList = ({ onSelectUser, onClose }) => {
                     border: '2px solid #202225',
                     marginRight: '16px',
                     position: 'relative',
-                    zIndex: 1,
+                    zIndex: 2,
                     boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                    transition: 'all 0.3s'
+                    transition: 'all 0.3s',
+                    flexShrink: 0
                   }}
                 />
                 <div style={{
                   flex: 1,
                   position: 'relative',
-                  zIndex: 1
+                  zIndex: 2,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  maxWidth: 'calc(100% - 100px)',
+                  pointerEvents: 'auto'
                 }}>
                   <div style={{
                     color: '#ffffff',
                     fontSize: '16px',
                     fontWeight: '600',
                     marginBottom: '4px',
-                    textShadow: '0 1px 2px rgba(0,0,0,0.3)'
-                  }}>{otherUser.name}</div>
+                    textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    display: 'block',
+                    width: '100%',
+                    position: 'relative',
+                    zIndex: 3
+                  }}>{otherUser.name || 'Unknown User'}</div>
                   <div style={{
                     color: '#b9bbbe',
                     fontSize: '13px',
-                    marginBottom: '4px'
-                  }}>{otherUser.email}</div>
+                    marginBottom: '4px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    display: 'block',
+                    width: '100%',
+                    position: 'relative',
+                    zIndex: 3
+                  }}>{otherUser.email || ''}</div>
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
