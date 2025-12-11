@@ -125,8 +125,9 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
             <div className="user-status">
               <div className={`status-dot ${otherParticipant?.online ? 'online' : 'offline'}`} />
               <span className="status-text">
-                {otherParticipant?.online ? 'Online' : 'Offline'}
+                {otherParticipant?.online ? 'Online' : otherParticipant?.lastSeen}
               </span>
+              
             </div>
           </div>
         </div>
@@ -178,9 +179,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
               <div className="message-content-wrapper">
                 {!isOwnMessage && (
                   <div className="message-sender">
-                    {msg.sender?.name}<br/>
-                    {msg.sender?.lastSeen }
-                    this
+                    {msg.sender?.name}
                   </div>
                 )}
                 <div className="message-bubble">
