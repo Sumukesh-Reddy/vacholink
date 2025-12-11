@@ -182,6 +182,53 @@ const Register = () => {
           <Link to="/login" className="auth-link">
             Sign in instead
           </Link>
+          
+        <div className="form-social-links">
+          <div className="social-divider">
+            <span>Connect with Developer</span>
+          </div>
+          <div className="social-links-container">
+            <a 
+              href="https://github.com/Sumukesh-Reddy" 
+              className="form-social-link"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="GitHub"
+            >
+              <span className="social-icon">{'</>'}</span>
+              <span className="social-label">GitHub</span>
+            </a>
+            <a 
+              href="mailto:sumukeshmopuram1@gmail.com" 
+              className="form-social-link"
+              title="Email"
+            >
+              <span className="social-icon">@</span>
+              <span className="social-label">Email</span>
+            </a>
+            <a 
+              href="https://www.linkedin.com/in/sumukesh-reddy-mopuram/" 
+              className="form-social-link"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="LinkedIn"
+            >
+              <span className="social-icon">in</span>
+              <span className="social-label">LinkedIn</span>
+            </a>
+            <a 
+              href="http://sumukesh-portfolio.vercel.app" 
+              className="form-social-link"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Portfolio"
+            >
+              <span className="social-icon">⎙</span>
+              <span className="social-label">Portfolio</span>
+            </a>
+          </div>
+          <p className="social-note">Have questions or feedback? Reach out!</p>
+        </div>
         </div>
       </div>
 
@@ -527,6 +574,131 @@ const Register = () => {
           }
         }
 
+          .form-social-links {
+            margin-top: 25px;
+            margin-bottom: 10px;
+          }
+
+          .social-links-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin: 15px 0;
+          }
+
+          .form-social-link {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 5px;
+            background: rgba(32, 34, 37, 0.5);
+            border-radius: 6px;
+            color: #b9bbbe;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+            min-height: 60px;
+          }
+
+          .form-social-link:hover {
+            background: rgba(67, 181, 129, 0.1);
+            border-color: rgba(67, 181, 129, 0.3);
+            color: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(67, 181, 129, 0.2);
+          }
+
+          .social-icon {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-family: 'Courier New', monospace;
+            height: 24px;
+            width: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            padding: 2px;
+          }
+
+          .social-label {
+            font-size: 10px;
+            font-weight: 500;
+            opacity: 0.9;
+            text-align: center;
+          }
+
+          .social-divider {
+            position: relative;
+            text-align: center;
+            margin: 15px 0;
+            color: #8e9297;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+
+          .social-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: rgba(32, 34, 37, 0.5);
+            z-index: 1;
+          }
+
+          .social-divider span {
+            position: relative;
+            background: rgba(47, 49, 54, 0.9);
+            padding: 0 15px;
+            z-index: 2;
+          }
+
+          .social-note {
+            text-align: center;
+            color: #8e9297;
+            font-size: 11px;
+            margin-top: 10px;
+            font-style: italic;
+            opacity: 0.8;
+          }
+
+          /* Mobile styles */
+          @media (max-width: 768px) {
+            .social-links-container {
+              grid-template-columns: repeat(2, 1fr);
+              gap: 6px;
+            }
+            
+            .form-social-link {
+              padding: 8px 4px;
+              min-height: 55px;
+            }
+            
+            .social-icon {
+              font-size: 14px;
+              height: 22px;
+              width: 22px;
+            }
+            
+            .social-label {
+              font-size: 9px;
+            }
+            
+            .social-divider {
+              font-size: 10px;
+              margin: 12px 0;
+            }
+            
+            .social-note {
+              font-size: 10px;
+            }
+          }
         /* Large screens */
         @media (min-width: 1200px) {
           .auth-form-container {

@@ -3,22 +3,15 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './styles/App.css';
-
-// Context Providers
 import { AuthProvider } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
-
-// Components
 import Navbar from './components/Common/Navbar';
 import PrivateRoute from './components/Auth/PrivateRoute';
-
-// FIXED: Correct component names and paths
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
-// Forgot/Reset password disabled
 import ChatPage from './pages/ChatPage';
 import ProfilePage from './pages/ProfilePage';
-import Footer from './components/Common/Footer';  
+
 
 function App() {
   return (
@@ -31,7 +24,7 @@ function App() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                {/* Forgot/Reset password routes disabled */}
+                
                 
                 <Route path="/" element={
                   <PrivateRoute>
@@ -60,7 +53,7 @@ function App() {
               draggable
               pauseOnHover
             />
-            <Footer />
+            
           </div>
         </Router>
       </SocketProvider>
