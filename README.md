@@ -21,8 +21,6 @@ A modern, real-time chat application with stunning visual effects and seamless c
 ### 💬 **Core Chat Features**
 - **Real-time Messaging** with Socket.io  
 - **Online Status Indicators**  
-- **Message Read Receipts** (double checkmarks)  
-- **Image Sharing**  
 - **Typing Indicators**  
 - **Chat Search**  
 - **Unread Message Badges**  
@@ -112,38 +110,49 @@ Frontend → http://localhost:3000
 Backend API → http://localhost:3001
 📁 Project Structure
 vacholink/
-├── client/                 # React frontend
-│   ├── public/             
-│   └── src/
-│       ├── components/
-│       │   ├── Chat/
-│       │   ├── Profile/
-│       │   └── Auth/
-│       ├── contexts/
-│       ├── pages/
-│       └── App.js
-├── server/                # Node.js backend
-│   ├── models/
-│   ├── routes/
-│   ├── middleware/
-│   └── server.js
+├── frontend/ # React application
+│ ├── public/ # Static assets
+│ └── src/
+│ ├── components/ # UI components
+│ ├── pages/ # App pages
+│ ├── context/ # Context providers
+│ └── App.js
+│
+├── backend/ # Node.js / Express API
+│ ├── models/ # Mongoose schemas
+│ ├── routes/ # REST API routes
+│ ├── middleware/ # Auth & other middleware
+│ ├── controllers/ # Route controllers
+│ └── server.js # Entry point
+│
 └── README.md
 🔧 API Endpoints
-Authentication
-Method	Endpoint	Description
-POST	/api/auth/register	Register user
-POST	/api/auth/login	Login
-POST	/api/auth/google	Google OAuth
-POST	/api/auth/forgot-password	Request reset
-POST	/api/auth/reset-password	Reset password
-Users
-Method	Endpoint	Description
-GET	/api/users/search	Search users
-GET	/api/users/:id	Get user
-PUT	/api/users/profile	Update profile
-Chat
-Method	Endpoint	Description
-GET	/api/chat/rooms	Get chat rooms
-POST	/api/chat/room	Create room
-GET	/api/chat/messages/:roomId	Fetch messages
-DELETE	/api/chat/room/:roomId	Delete room
+
+Auth Routes
+| Method | Endpoint                    | Description    |
+| ------ | --------------------------- | -------------- |
+| POST   | `/api/auth/register`        | Register user  |
+| POST   | `/api/auth/login`           | Login          |
+| POST   | `/api/auth/google`          | Google OAuth   |
+| POST   | `/api/auth/forgot-password` | Send reset OTP |
+| POST   | `/api/auth/reset-password`  | Reset password |
+
+User Routes
+| Method | Endpoint             | Description    |
+| ------ | -------------------- | -------------- |
+| GET    | `/api/users/search`  | Search users   |
+| GET    | `/api/users/:id`     | Get user       |
+| PUT    | `/api/users/profile` | Update profile |
+
+Chat Routes
+| Method | Endpoint                     | Description  |
+| ------ | ---------------------------- | ------------ |
+| GET    | `/api/chat/rooms`            | Get rooms    |
+| POST   | `/api/chat/room`             | Create room  |
+| GET    | `/api/chat/messages/:roomId` | Get messages |
+| DELETE | `/api/chat/room/:roomId`     | Delete room  |
+
+## 👨‍💻 About Me
+I'm Sumukesh Reddy, a full-stack developer passionate about building real-time, scalable web applications.  
+I specialize in React, Node.js, MongoDB, and cloud-based automation.  
+I love solving problems, learning fast, and creating clean, efficient user experiences.
