@@ -95,6 +95,15 @@ const Footer = () => {
             >
               in
             </a>
+            <a 
+                href="http://sumukesh-portfolio.vercel.app" 
+                className="social-link"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Portfolio"
+            >
+                ⎙
+            </a>
           </div>
         </div>
 
