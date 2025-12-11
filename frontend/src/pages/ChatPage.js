@@ -519,66 +519,8 @@ const ChatPage = () => {
       </div>
       
       
-      <div className="chat-layout">
-        {!isMobile && (
-          <ChatSidebar
-            rooms={rooms}
-            selectedRoom={selectedRoom}
-            onSelectRoom={handleSelectRoom}
-            onStartNewChat={() => setShowUserList(true)}
-            onlineUsers={onlineUsers}
-          />
-        )}
-        
-        {selectedRoom ? (
-          <ChatWindow
-            room={selectedRoom}
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            onTyping={handleTyping}
-            onDeleteRoom={() => handleDeleteRoom(selectedRoom?._id)}
-          />
-        ) : (
-          <div className="chat-welcome">
-            <div className="welcome-content">
-              
-              <div className="welcome-logo">
-                ꍡ
-              </div>
-              
-              <h2 className="welcome-title">Welcome to VachoLink!</h2>
-              
-              <p className="welcome-text">
-                Connect with friends and colleagues in real-time.<br />
-                Start meaningful conversations that matter.
-              </p>
-              
-              <button 
-                className="welcome-button"
-                onClick={() => setShowUserList(true)}
-              >
-                <div className="welcome-button-glow" />
-                <span className="welcome-button-text">
-                  Start New Chat
-                </span>
-              </button>
-              
-              <div className="welcome-stats">
-                <div className="stat-item">
-                  <div className="stat-number">{onlineUsers.size}</div>
-                  <div className="stat-label">Online</div>
-                </div>
-                <div className="stat-item">
-                  <div className="stat-number">{rooms.length}</div>
-                  <div className="stat-label">Chats</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {isMobile && !selectedRoom && (
+      {/* Main layout - simplified structure */}
+      {!isMobile && (
         <ChatSidebar
           rooms={rooms}
           selectedRoom={selectedRoom}
@@ -586,6 +528,68 @@ const ChatPage = () => {
           onStartNewChat={() => setShowUserList(true)}
           onlineUsers={onlineUsers}
         />
+      )}
+      
+      {/* Content area */}
+      {selectedRoom ? (
+        <ChatWindow
+        room={selectedRoom}
+        messages={messages}
+        onSendMessage={handleSendMessage}
+        onTyping={handleTyping}
+        onDeleteRoom={() => handleDeleteRoom(selectedRoom?._id)}
+        onBack={() => setSelectedRoom(null)} // Add this line
+      />
+      ) : (
+        <>
+          {/* Mobile: Show sidebar OR welcome screen, not both */}
+          {isMobile ? (
+            <ChatSidebar
+              rooms={rooms}
+              selectedRoom={selectedRoom}
+              onSelectRoom={handleSelectRoom}
+              onStartNewChat={() => setShowUserList(true)}
+              onlineUsers={onlineUsers}
+            />
+          ) : (
+            <div className="chat-welcome">
+              <div className="welcome-content">
+                
+                <div className="welcome-logo">
+                  ꍡ
+                </div>
+                
+                <h2 className="welcome-title">Welcome to VachoLink!</h2>
+                
+                <p className="welcome-text">
+                  Connect with friends and colleagues in real-time.<br />
+                  Start meaningful conversations that matter.
+                </p>
+                
+                <button 
+                  className="welcome-button"
+                  onClick={() => setShowUserList(true)}
+                >
+                  <div className="welcome-button-glow" />
+                  <span className="welcome-button-text">
+                    Start New Chat
+                  </span>
+                </button>
+                
+                <div className="welcome-stats">
+                  <div className="stat-item">
+                    <div className="stat-number">{onlineUsers.size}</div>
+                    <div className="stat-label">Online</div>
+                  </div>
+                  <div className="stat-item">
+                    <div className="stat-number">{rooms.length}</div>
+                    <div className="stat-label">Chats</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {showUserList && (
@@ -679,14 +683,6 @@ const ChatPage = () => {
           height: 400px;
           --color: rgba(67, 181, 129, 0.05);
           animation-duration: 25s;
-        }
-
-        /* Layout */
-        .chat-layout {
-          display: flex;
-          width: 100%;
-          position: relative;
-          z-index: 2;
         }
 
         /* Welcome screen */
@@ -907,55 +903,8 @@ const ChatPage = () => {
             display: none;
           }
 
-          .chat-layout {
-            flex-direction: column;
-          }
-
           .chat-welcome {
-            border-left: none;
-            padding: 20px;
-          }
-
-          .welcome-content {
-            padding: 30px 20px;
-            max-width: 100%;
-            width: 100%;
-          }
-
-          .welcome-logo {
-            width: 60px;
-            height: 60px;
-            font-size: 28px;
-            margin-bottom: 20px;
-          }
-
-          .welcome-title {
-            font-size: 24px;
-            margin-bottom: 12px;
-          }
-
-          .welcome-text {
-            font-size: 14px;
-            margin-bottom: 24px;
-          }
-
-          .welcome-button {
-            padding: 12px 24px;
-            font-size: 14px;
-            min-height: 44px;
-          }
-
-          .stat-number {
-            font-size: 18px;
-          }
-
-          .stat-label {
-            font-size: 13px;
-          }
-
-          .welcome-stats {
-            margin-top: 24px;
-            padding-top: 20px;
+            display: none; /* Hide welcome screen on mobile */
           }
         }
 

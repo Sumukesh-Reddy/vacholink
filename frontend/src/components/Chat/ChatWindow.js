@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
-const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) => {
+const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onBack }) => {  // Added onBack prop
   const { user } = useAuth();
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -105,6 +105,17 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
       <div className="chat-bg-overlay" />
 
       <div className="chat-header">
+        {/* Mobile Back Button */}
+        {isMobile && onBack && (
+          <button 
+            className="mobile-back-button"
+            onClick={onBack}
+            aria-label="Back to chats"
+          >
+            ←
+          </button>
+        )}
+        
         <div className="header-user">
           <div className="user-avatar-container">
             <img
@@ -283,12 +294,36 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
           min-height: 72px;
         }
 
+        /* Mobile Back Button */
+        .mobile-back-button {
+          display: none;
+          position: absolute;
+          left: 12px;
+          background: transparent;
+          border: none;
+          color: #ffffff;
+          font-size: 24px;
+          cursor: pointer;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+          z-index: 2;
+        }
+
+        .mobile-back-button:hover {
+          background: rgba(255, 255, 255, 0.1);
+        }
+
         .header-user {
           display: flex;
           align-items: center;
           gap: 16px;
           flex: 1;
           min-width: 0;
+          margin-left: ${isMobile && onBack ? '40px' : '0'};
         }
 
         .user-avatar-container {
@@ -686,6 +721,10 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
             min-height: 64px;
           }
 
+          .mobile-back-button {
+            display: flex;
+          }
+
           .user-avatar {
             width: 40px;
             height: 40px;
@@ -750,22 +789,25 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
 
         @media (max-width: 480px) {
           .chat-header {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 12px;
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
             padding: 12px;
           }
 
           .header-user {
-            width: 100%;
+            width: auto;
+            margin-left: 36px;
           }
 
           .header-actions {
-            width: 100%;
+            width: auto;
           }
 
           .delete-button {
-            width: 100%;
+            width: auto;
+            padding: 6px 10px;
+            font-size: 12px;
           }
 
           .messages-container {
@@ -792,7 +834,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom }) =
           }
 
           .message-form {
-            flex-direction: column;
+            flex-direction: row;
             gap: 10px;
           }
 

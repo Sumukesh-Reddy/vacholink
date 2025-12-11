@@ -83,7 +83,7 @@ const Navbar = () => {
                 className="nav-button login-button"
                 onClick={() => setShowMobileMenu(false)}
               >
-                Login
+                Sign In
               </Link>
               <Link 
                 to="/register" 
