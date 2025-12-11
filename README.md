@@ -1,4 +1,4 @@
-# VachoLink 💬
+# ꍡ VachoLink 
 
 [![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen?style=for-the-badge)](https://vacholink.vercel.app)
 [![React](https://img.shields.io/badge/React-18.2.0-blue?style=for-the-badge&logo=react)](https://reactjs.org/)
@@ -83,11 +83,11 @@ git clone https://github.com/yourusername/vacholink.git
 cd vacholink
 2. Install Dependencies
 # Install client dependencies
-cd client
+cd backend
 npm install
 
 # Install server dependencies
-cd ../server
+cd ../frontend
 npm install
 3. Environment Setup
 Create a .env file inside the server folder:
@@ -103,7 +103,7 @@ cd server
 npm start
 
 # Start client
-cd ../client
+cd ../backend
 npm start
 Application URLs:
 Frontend → http://localhost:3000
@@ -152,7 +152,7 @@ Chat Routes
 | GET    | `/api/chat/messages/:roomId` | Get messages |
 | DELETE | `/api/chat/room/:roomId`     | Delete room  |
 
-## 👨‍💻 About Me
+👨‍💻 About Me 
 I'm Sumukesh Reddy, a full-stack developer passionate about building real-time, scalable web applications.  
 I specialize in React, Node.js, MongoDB, and cloud-based automation.  
 I love solving problems, learning fast, and creating clean, efficient user experiences.
