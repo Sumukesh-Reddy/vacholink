@@ -80,7 +80,7 @@ const Navbar = () => {
             <div className="auth-buttons">
               <Link 
                 to="/login" 
-                className="nav-button login-button"
+                className="nav-button login-button1"
                 onClick={() => setShowMobileMenu(false)}
               >
                 Sign In
@@ -277,13 +277,13 @@ const Navbar = () => {
           background: #d84040;
         }
 
-        .login-button {
+        .login-button1 {
           background: transparent;
           color: #b9bbbe;
           border: 1px solid #4f545c;
         }
 
-        .login-button:hover {
+        .login-button1:hover {
           background: #4f545c;
           color: #ffffff;
         }

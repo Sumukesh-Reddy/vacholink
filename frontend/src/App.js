@@ -18,6 +18,7 @@ import Register from './components/Auth/Register';
 // Forgot/Reset password disabled
 import ChatPage from './pages/ChatPage';
 import ProfilePage from './pages/ProfilePage';
+import Footer from './components/Common/Footer';  
 
 function App() {
   return (
@@ -59,6 +60,7 @@ function App() {
               draggable
               pauseOnHover
             />
+            <Footer />
           </div>
         </Router>
       </SocketProvider>
