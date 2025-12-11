@@ -68,7 +68,11 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
       handleSubmit(e);
     }
   };
-
+  function formatLastSeen(timestamp) {
+    const date = new Date(timestamp);
+    return date.toLocaleString(); // or a custom formatter
+  }
+  
   return (
     <div className="chat-window-container">
       
@@ -125,7 +129,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
             <div className="user-status">
               <div className={`status-dot ${otherParticipant?.online ? 'online' : 'offline'}`} />
               <span className="status-text">
-                {otherParticipant?.online ? 'Online' : otherParticipant?.lastSeen}
+                {otherParticipant?.online ? 'Online' : `Last seen ${formatLastSeen(otherParticipant?.lastSeen)}`}
               </span>
               
             </div>
