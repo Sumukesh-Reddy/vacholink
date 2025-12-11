@@ -91,10 +91,10 @@ const ChatPage = () => {
       const response = await axios.get(`${API_URL}/api/chat/rooms`);
       setRooms(response.data.rooms);
       
-      if (response.data.rooms.length > 0 && !selectedRoom) {
+      if (!isMobile && response.data.rooms.length > 0 && !selectedRoom) {
         setSelectedRoom(response.data.rooms[0]);
         fetchMessages(response.data.rooms[0]._id);
-      }
+    }    
     } catch (error) {
       toast.error('Failed to load chat rooms');
     } finally {
