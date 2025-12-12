@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
+
+const API_URL = process.env.REACT_APP_API_URL || "https://vacholink.onrender.com";
 
 const Register = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
   const [stars, setStars] = useState([]);
+  const navigate = useNavigate();
+  const { login } = useAuth();
 
   useEffect(() => {
     // Generate responsive stars
@@ -38,54 +39,49 @@ const Register = () => {
     return () => window.removeEventListener('resize', generateStars);
   }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
-
-    if (name.length < 2) {
-      toast.error('Name must be at least 2 characters');
-      return;
-    }
-
+  // Handle Google signup success
+  const handleGoogleSuccess = async (credentialResponse) => {
     setLoading(true);
-
     try {
-      const response = await axios.post('/api/auth/register', {
-        name,
-        email,
-        password
+      const response = await axios.post(`${API_URL}/api/auth/google`, {
+        credential: credentialResponse.credential
       });
 
       if (response.data.success) {
-        toast.success('Registration successful! You can now login.');
-        navigate('/login');
+        // Call login with user object and token
+        const loginResult = await login(response.data.user, response.data.token);
+        
+        if (loginResult.success) {
+          toast.success('Google signup successful!');
+          
+          // Check if profile completion is needed
+          if (response.data.needsProfileCompletion) {
+            navigate('/complete-profile');
+          } else {
+            navigate('/');
+          }
+        } else {
+          toast.error(loginResult.message || 'Signup failed');
+        }
       } else {
-        toast.error(response.data.message || 'Registration failed');
+        toast.error(response.data.message);
       }
     } catch (error) {
-      console.error('Registration error:', error);
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
-                          'Registration failed. Please try again.';
-      toast.error(errorMessage);
+      console.error('Google signup error:', error);
+      toast.error(error.response?.data?.message || 'Google signup failed');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleGoogleError = () => {
+    toast.error('Google signup failed. Please try again.');
+  };
+
   return (
-    <div className="auth-container">
+    <div className="register-container">
       {/* Background layers */}
-      <div className="auth-bg-gradient" />
+      <div className="register-bg-gradient" />
       
       {/* Stars */}
       <div className="stars-container">
@@ -107,98 +103,65 @@ const Register = () => {
       </div>
       
       {/* Glow effect */}
-      <div className="auth-glow" />
+      <div className="register-glow" />
 
       {/* Form container */}
-      <div className="auth-form-container">
+      <div className="register-form-container">
         {/* Form inner glow */}
-        <div className="auth-form-glow" />
+        <div className="register-form-glow" />
         
         {/* Logo and header */}
-        <div className="auth-header">
-          <div className="auth-logo">
+        <div className="register-header">
+          <div className="register-logo">
             ꍡ
           </div>
-          <h2 className="auth-title">Join VachoLink</h2>
-          <p className="auth-subtitle">Create your account instantly</p>
+          <h2 className="register-title">Join VachoLink</h2>
+          <p className="register-subtitle">Sign up with Google to get started</p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="name">DISPLAY NAME</label>
-            <input
-              type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Choose a display name"
-              required
-              minLength="2"
-              className="auth-input"
+        {/* Google Signup Button */}
+        <div className="google-signup-container">
+          {loading ? (
+            <div className="loading-spinner">
+              <div className="spinner"></div>
+              <span>Creating account...</span>
+            </div>
+          ) : (
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              theme="filled_blue"
+              size="large"
+              width="100%"
+              text="signup_with"
+              shape="rectangular"
             />
-          </div>
+          )}
+        </div>
 
-          <div className="form-group">
-            <label htmlFor="email">EMAIL</label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              required
-              className="auth-input"
-            />
-          </div>
+        {/* Info Box */}
+        <div className="register-info">
+          <p className="register-info-text">
+            <strong>Why Google Signup?</strong>
+            <br />
+            • Secure, one-click registration
+            <br />
+            • No need to remember passwords
+            <br />
+            • Verified email address
+            <br />
+            • Quick profile setup
+          </p>
+        </div>
 
-          <div className="form-group">
-            <label htmlFor="password">PASSWORD</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Create a password (min. 6 characters)"
-              required
-              minLength="6"
-              className="auth-input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="confirmPassword">CONFIRM PASSWORD</label>
-            <input
-              type="password"
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm your password"
-              required
-              minLength="6"
-              className="auth-input"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="auth-button"
-          >
-            <div className="button-glow" />
-            <span className="button-text">
-              {loading ? 'Creating Account...' : 'Create Account'}
-            </span>
-          </button>
-        </form>
-
-        {/* Footer link */}
-        <div className="auth-footer">
+        {/* Footer */}
+        <div className="register-footer">
           <p>Already have an account?</p>
-          <Link to="/login" className="auth-link">
+          <Link to="/login" className="register-link">
             Sign in instead
           </Link>
           
+          {/* Social links */}
           <div className="form-social-links">
             <div className="social-divider">
               <span>Connect with Developer</span>
@@ -250,7 +213,7 @@ const Register = () => {
 
       <style>{`
         /* Base styles */
-        .auth-container {
+        .register-container {
           min-height: 100vh;
           background: #0a0a0a;
           display: flex;
@@ -261,7 +224,7 @@ const Register = () => {
           overflow: hidden;
         }
 
-        .auth-bg-gradient {
+        .register-bg-gradient {
           position: absolute;
           top: 0;
           left: 0;
@@ -286,7 +249,7 @@ const Register = () => {
           filter: blur(0.3px);
         }
 
-        .auth-glow {
+        .register-glow {
           position: absolute;
           top: 50%;
           left: 50%;
@@ -301,7 +264,7 @@ const Register = () => {
         }
 
         /* Form container */
-        .auth-form-container {
+        .register-form-container {
           background: rgba(47, 49, 54, 0.85);
           backdrop-filter: blur(10px);
           -webkit-backdrop-filter: blur(10px);
@@ -315,7 +278,7 @@ const Register = () => {
           z-index: 1;
         }
 
-        .auth-form-glow {
+        .register-form-glow {
           position: absolute;
           top: 0;
           left: 0;
@@ -327,12 +290,12 @@ const Register = () => {
         }
 
         /* Header */
-        .auth-header {
+        .register-header {
           text-align: center;
           margin-bottom: 30px;
         }
 
-        .auth-logo {
+        .register-logo {
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -347,7 +310,7 @@ const Register = () => {
           box-shadow: 0 0 20px rgba(67, 181, 129, 0.4);
         }
 
-        .auth-title {
+        .register-title {
           color: #ffffff;
           font-size: 24px;
           font-weight: 700;
@@ -356,109 +319,76 @@ const Register = () => {
           text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
 
-        .auth-subtitle {
+        .register-subtitle {
           text-align: center;
           color: #b9bbbe;
           font-size: 14px;
         }
 
-        /* Form elements */
-        .form-group {
-          margin-bottom: 20px;
+        /* Google Signup Container */
+        .google-signup-container {
+          margin: 30px 0;
+          display: flex;
+          justify-content: center;
         }
 
-        .form-group label {
+        .loading-spinner {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 15px;
+        }
+
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid rgba(67, 181, 129, 0.3);
+          border-top: 3px solid #43b581;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
+        .loading-spinner span {
+          color: #b9bbbe;
+          font-size: 14px;
+        }
+
+        /* Info Box */
+        .register-info {
+          background: rgba(32, 34, 37, 0.5);
+          border-radius: 8px;
+          padding: 15px;
+          margin: 25px 0;
+          border: 1px solid rgba(32, 34, 37, 0.8);
+        }
+
+        .register-info-text {
+          color: #b9bbbe;
+          font-size: 13px;
+          line-height: 1.6;
+          margin: 0;
+        }
+
+        .register-info-text strong {
+          color: #ffffff;
           display: block;
           margin-bottom: 8px;
-          font-weight: 500;
-          color: #8e9297;
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .auth-input {
-          width: 100%;
-          padding: 14px;
-          background: rgba(32, 34, 37, 0.7);
-          border: 1px solid rgba(32, 34, 37, 0.5);
-          border-radius: 6px;
-          color: #dcddde;
-          font-size: 15px;
-          transition: all 0.3s;
-          outline: none;
-          box-sizing: border-box;
-        }
-
-        .auth-input:focus {
-          border-color: #43b581;
-          box-shadow: 0 0 0 2px rgba(67, 181, 129, 0.2);
-          background: rgba(32, 34, 37, 0.9);
-        }
-
-        /* Button */
-        .auth-button {
-          width: 100%;
-          padding: 14px;
-          background: linear-gradient(135deg, #43b581 0%, #3ba55d 100%);
-          color: white;
-          border: none;
-          border-radius: 6px;
-          font-size: 15px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s;
-          font-family: "'Whitney', sans-serif";
-          margin-bottom: 24px;
-          position: relative;
-          overflow: hidden;
-          min-height: 48px;
-        }
-
-        .auth-button:disabled {
-          background: #3ba55d;
-          cursor: not-allowed;
-          opacity: 0.7;
-        }
-
-        .auth-button:not(:disabled):hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(67, 181, 129, 0.3);
-        }
-
-        .button-glow {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 70%);
-          animation: buttonGlow 2s infinite;
-        }
-
-        .auth-button:disabled .button-glow {
-          animation: none;
-        }
-
-        .button-text {
-          position: relative;
-          z-index: 1;
         }
 
         /* Footer */
-        .auth-footer {
+        .register-footer {
           text-align: center;
           padding-top: 24px;
           border-top: 1px solid rgba(32, 34, 37, 0.5);
         }
 
-        .auth-footer p {
+        .register-footer p {
           color: #8e9297;
           font-size: 14px;
           margin-bottom: 8px;
         }
 
-        .auth-link {
+        .register-link {
           color: #7289da;
           text-decoration: none;
           font-weight: 600;
@@ -469,7 +399,7 @@ const Register = () => {
           border-radius: 4px;
         }
 
-        .auth-link:hover {
+        .register-link:hover {
           background: rgba(114, 137, 218, 0.1);
           transform: translateY(-1px);
         }
@@ -590,68 +520,51 @@ const Register = () => {
           }
         }
         
-        @keyframes buttonGlow {
-          0%, 100% { 
-            opacity: 0.3;
-            transform: scale(1);
-          }
-          50% { 
-            opacity: 0.5;
-            transform: scale(1.1);
-          }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
 
         /* Mobile styles */
         @media (max-width: 768px) {
-          .auth-container {
+          .register-container {
             padding: 10px;
             align-items: flex-start;
             padding-top: 40px;
           }
 
-          .auth-form-container {
+          .register-form-container {
             padding: 30px 25px;
             max-width: 100%;
             margin: 0 15px;
             border-radius: 10px;
           }
 
-          .auth-glow {
+          .register-glow {
             width: 250px;
             height: 250px;
             filter: blur(25px);
           }
 
-          .auth-logo {
+          .register-logo {
             width: 50px;
             height: 50px;
             font-size: 24px;
           }
 
-          .auth-title {
+          .register-title {
             font-size: 20px;
           }
 
-          .auth-subtitle {
+          .register-subtitle {
             font-size: 13px;
           }
 
-          .form-group label {
-            font-size: 11px;
+          .register-info-text {
+            font-size: 12px;
           }
 
-          .auth-input {
-            padding: 12px;
-            font-size: 14px;
-          }
-
-          .auth-button {
-            padding: 12px;
-            font-size: 14px;
-            min-height: 44px;
-          }
-
-          .auth-link {
+          .register-link {
             padding: 6px 12px;
             font-size: 13px;
           }
@@ -688,37 +601,30 @@ const Register = () => {
 
         /* Small mobile */
         @media (max-width: 480px) {
-          .auth-form-container {
+          .register-form-container {
             padding: 25px 20px;
             margin: 0 10px;
           }
 
-          .auth-logo {
+          .register-logo {
             width: 45px;
             height: 45px;
             font-size: 22px;
             margin-bottom: 12px;
           }
 
-          .auth-title {
+          .register-title {
             font-size: 18px;
           }
 
-          .auth-input {
-            padding: 11px;
-            font-size: 13px;
-          }
-
-          .auth-button {
-            padding: 11px;
-            font-size: 13px;
-            min-height: 42px;
+          .register-subtitle {
+            font-size: 12px;
           }
         }
 
         /* Large screens */
         @media (min-width: 1200px) {
-          .auth-form-container {
+          .register-form-container {
             max-width: 500px;
             padding: 50px;
           }

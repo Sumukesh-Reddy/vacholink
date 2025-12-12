@@ -13,8 +13,14 @@ const { Resend } = require('resend');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const path = require('path');
+const { OAuth2Client } = require('google-auth-library');
 
 dotenv.config();
+
+// Google OAuth client
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+const signupOtps = new Map();
 
 const app = express();
 app.use(helmet());
@@ -101,6 +107,25 @@ const upload = multer({
   }
 });
 
+// Resend Email Client
+const createResendClient = () => {
+  console.log('📧 Creating Resend client...');
+  
+  if (!process.env.RESEND_API_KEY) {
+    console.error('❌ RESEND_API_KEY is not set in environment variables');
+    return null;
+  }
+  
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    console.log('✅ Resend client created successfully');
+    return resend;
+  } catch (error) {
+    console.error('❌ Failed to create Resend client:', error.message);
+    return null;
+  }
+};
+
 // ========== MODELS ==========
 
 // User Model
@@ -120,7 +145,10 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin'], 
     default: 'user' 
   },
-  isVerified: { type: Boolean, default: true }, // Auto-verify for simple auth
+  isVerified: { type: Boolean, default: false },
+  resetToken: String,
+  resetTokenExpires: Date,
+  needsProfileCompletion: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
@@ -200,14 +228,189 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// ========== SIMPLE AUTH ROUTES (NO OTP) ==========
+// ========== AUTH ROUTES ==========
 
-// 1. Simple Registration (No OTP)
+// Utility: generate 6-digit OTP
+const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+// ========== GOOGLE AUTH ROUTES ==========
+
+// Google Authentication
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    console.log('🔐 Google auth request received');
+
+    if (!credential) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Google credential is required' 
+      });
+    }
+
+    // Verify Google token
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name, picture } = payload;
+
+    console.log('✅ Google token verified for:', email);
+
+    // Check if user exists
+    let user = await User.findOne({ 
+      $or: [{ googleId }, { email }] 
+    });
+
+    let isNewUser = false;
+
+    if (!user) {
+      // New user - create with minimal info
+      user = await User.create({
+        googleId,
+        email,
+        name: name || email.split('@')[0],
+        profilePhoto: picture || '',
+        isVerified: true,
+        needsProfileCompletion: true
+      });
+      isNewUser = true;
+      console.log('👤 New Google user created:', email);
+    } else {
+      // Existing user - update last seen
+      user.online = true;
+      user.lastSeen = new Date();
+      
+      // If existing user doesn't have googleId, update it
+      if (!user.googleId) {
+        user.googleId = googleId;
+      }
+      
+      await user.save();
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '7d' }
+    );
+
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    console.log(`🎉 Google login successful for: ${email} (${isNewUser ? 'new' : 'existing'})`);
+
+    res.json({
+      success: true,
+      message: isNewUser ? 'Google signup successful' : 'Google login successful',
+      token,
+      user: userResponse,
+      needsProfileCompletion: user.needsProfileCompletion || false
+    });
+  } catch (error) {
+    console.error('❌ Google auth error:', error);
+    res.status(401).json({ 
+      success: false, 
+      message: 'Google authentication failed' 
+    });
+  }
+});
+
+// Complete Profile for New Google Users
+app.post('/api/auth/complete-profile', authenticateToken, async (req, res) => {
+  try {
+    const { name, password } = req.body;
+
+    console.log('📝 Profile completion request for user:', req.user._id);
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    const updates = {};
+    
+    // Update name if provided
+    if (name && name.trim()) {
+      // Check if name is already taken by another user
+      const existingName = await User.findOne({ 
+        name: name.trim(),
+        _id: { $ne: user._id }
+      });
+      
+      if (existingName) {
+        return res.status(400).json({
+          success: false,
+          message: 'Display name is already taken, please choose another'
+        });
+      }
+      updates.name = name.trim();
+    }
+
+    // Update password if provided
+    if (password && password.trim()) {
+      if (password.length < 6) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Password must be at least 6 characters' 
+        });
+      }
+      
+      const salt = await bcrypt.genSalt(10);
+      updates.password = await bcrypt.hash(password, salt);
+    }
+
+    // Mark profile as completed
+    updates.needsProfileCompletion = false;
+    updates.updatedAt = new Date();
+
+    const updatedUser = await User.findByIdAndUpdate(
+      user._id,
+      updates,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    console.log('✅ Profile completed for user:', updatedUser.email);
+
+    res.json({
+      success: true,
+      message: 'Profile completed successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('❌ Profile completion error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to complete profile' 
+    });
+  }
+});
+
+// ========== EXISTING AUTH ROUTES ==========
+
+// Send OTP for Signup - DISABLED
+app.post('/api/auth/send-otp', async (req, res) => {
+  return res.status(410).json({ success: false, message: 'OTP verification has been disabled' });
+});
+
+// Verify OTP and complete signup - DISABLED
+app.post('/api/auth/verify-otp', async (req, res) => {
+  return res.status(410).json({ success: false, message: 'OTP verification has been disabled' });
+});
+
+// Register with Email/Password (legacy endpoint)
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    console.log('📝 Simple registration request for:', email);
+    console.log('📝 Legacy register endpoint called for:', email);
 
     if (!name || !email || !password) {
       return res.status(400).json({ 
@@ -223,9 +426,8 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
 
-    // Check uniqueness
-    const existingEmail = await User.findOne({ email });
-    if (existingEmail) {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
       return res.status(400).json({ 
         success: false, 
         message: 'User with this email already exists' 
@@ -240,7 +442,6 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
 
-    // Hash password and create user
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -251,7 +452,6 @@ app.post('/api/auth/register', async (req, res) => {
       isVerified: true
     });
 
-    // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, email: user.email }, 
       process.env.JWT_SECRET, 
@@ -261,25 +461,22 @@ app.post('/api/auth/register', async (req, res) => {
     const userResponse = user.toObject();
     delete userResponse.password;
 
-    console.log('✅ User registered successfully:', user.email);
-
     res.status(201).json({
       success: true,
-      message: 'Registration successful! You can now login.',
+      message: 'Registration successful',
       token,
       user: userResponse
     });
   } catch (error) {
-    console.error('❌ Registration error:', error);
+    console.error('Registration error:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Server error during registration',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'Server error during registration' 
     });
   }
 });
 
-// 2. Login with Email/Password
+// Login with Email/Password
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -295,7 +492,7 @@ app.post('/api/auth/login', async (req, res) => {
     if (!user) {
       return res.status(401).json({ 
         success: false, 
-        message: 'Invalid email or password' 
+        message: 'Invalid credentials' 
       });
     }
 
@@ -303,16 +500,14 @@ app.post('/api/auth/login', async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({ 
         success: false, 
-        message: 'Invalid email or password' 
+        message: 'Invalid credentials' 
       });
     }
 
-    // Update user status
     user.online = true;
     user.lastSeen = new Date();
     await user.save();
 
-    // Generate token
     const token = jwt.sign(
       { userId: user._id, email: user.email }, 
       process.env.JWT_SECRET, 
@@ -324,12 +519,12 @@ app.post('/api/auth/login', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Login successful!',
+      message: 'Login successful',
       token,
       user: userResponse
     });
   } catch (error) {
-    console.error('❌ Login error:', error);
+    console.error('Login error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Server error during login' 
@@ -337,7 +532,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// 3. Get Current User Profile
+// Get Current User Profile
 app.get('/api/auth/profile', authenticateToken, async (req, res) => {
   try {
     res.json({
@@ -345,7 +540,6 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
       user: req.user
     });
   } catch (error) {
-    console.error('❌ Profile fetch error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch profile' 
@@ -353,7 +547,7 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// 4. Update Profile
+// Update Profile
 app.put('/api/auth/profile', authenticateToken, async (req, res) => {
   try {
     const { name, bio } = req.body;
@@ -374,7 +568,6 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
       user
     });
   } catch (error) {
-    console.error('❌ Profile update error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to update profile' 
@@ -382,7 +575,7 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// 5. Upload Profile Photo
+// Upload Profile Photo
 app.post('/api/auth/profile/photo', authenticateToken, upload.single('profilePhoto'), async (req, res) => {
   try {
     if (!req.file) {
@@ -421,7 +614,7 @@ app.post('/api/auth/profile/photo', authenticateToken, upload.single('profilePho
       photoUrl: result.secure_url
     });
   } catch (error) {
-    console.error('❌ Profile photo upload error:', error);
+    console.error('Profile photo upload error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to upload profile photo' 
@@ -429,7 +622,7 @@ app.post('/api/auth/profile/photo', authenticateToken, upload.single('profilePho
   }
 });
 
-// 6. Change Password
+// Change Password
 app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -469,7 +662,7 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
       message: 'Password changed successfully'
     });
   } catch (error) {
-    console.error('❌ Change password error:', error);
+    console.error('Change password error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to change password' 
@@ -477,7 +670,17 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
   }
 });
 
-// 7. Logout
+// Forgot Password - DISABLED
+app.post('/api/auth/forgot-password', async (req, res) => {
+  return res.status(410).json({ success: false, message: 'Password reset has been disabled' });
+});
+
+// Reset Password - DISABLED
+app.post('/api/auth/reset-password', async (req, res) => {
+  return res.status(410).json({ success: false, message: 'Password reset has been disabled' });
+});
+
+// Logout
 app.post('/api/auth/logout', authenticateToken, async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.user._id, {
@@ -490,7 +693,6 @@ app.post('/api/auth/logout', authenticateToken, async (req, res) => {
       message: 'Logged out successfully'
     });
   } catch (error) {
-    console.error('❌ Logout error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Logout failed' 
@@ -500,7 +702,7 @@ app.post('/api/auth/logout', authenticateToken, async (req, res) => {
 
 // ========== CHAT ROUTES ==========
 
-// 1. Get or Create Direct Chat Room
+// Get or Create Direct Chat Room
 app.post('/api/chat/room', authenticateToken, async (req, res) => {
   try {
     const { participantId } = req.body;
@@ -543,7 +745,7 @@ app.post('/api/chat/room', authenticateToken, async (req, res) => {
       room
     });
   } catch (error) {
-    console.error('❌ Create room error:', error);
+    console.error('Create room error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to create chat room' 
@@ -551,7 +753,7 @@ app.post('/api/chat/room', authenticateToken, async (req, res) => {
   }
 });
 
-// 2. Get User's Chat Rooms
+// Get User's Chat Rooms
 app.get('/api/chat/rooms', authenticateToken, async (req, res) => {
   try {
     const rooms = await Room.find({
@@ -567,7 +769,7 @@ app.get('/api/chat/rooms', authenticateToken, async (req, res) => {
       rooms
     });
   } catch (error) {
-    console.error('❌ Get rooms error:', error);
+    console.error('Get rooms error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch chat rooms' 
@@ -575,7 +777,7 @@ app.get('/api/chat/rooms', authenticateToken, async (req, res) => {
   }
 });
 
-// 2a. Delete a Chat Room
+// Delete a Chat Room
 app.delete('/api/chat/room/:roomId', authenticateToken, async (req, res) => {
   try {
     const { roomId } = req.params;
@@ -595,12 +797,12 @@ app.delete('/api/chat/room/:roomId', authenticateToken, async (req, res) => {
 
     res.json({ success: true, message: 'Chat deleted' });
   } catch (error) {
-    console.error('❌ Delete room error:', error);
+    console.error('Delete room error:', error);
     res.status(500).json({ success: false, message: 'Failed to delete chat' });
   }
 });
 
-// 3. Get Messages for a Room
+// Get Messages for a Room
 app.get('/api/chat/messages/:roomId', authenticateToken, async (req, res) => {
   try {
     const { roomId } = req.params;
@@ -647,7 +849,7 @@ app.get('/api/chat/messages/:roomId', authenticateToken, async (req, res) => {
       total: await Message.countDocuments({ roomId, deleted: false })
     });
   } catch (error) {
-    console.error('❌ Get messages error:', error);
+    console.error('Get messages error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch messages' 
@@ -655,7 +857,7 @@ app.get('/api/chat/messages/:roomId', authenticateToken, async (req, res) => {
   }
 });
 
-// 4. Search Users
+// Search Users
 app.get('/api/users/search', authenticateToken, async (req, res) => {
   try {
     const { query } = req.query;
@@ -683,7 +885,7 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
       users
     });
   } catch (error) {
-    console.error('❌ Search users error:', error);
+    console.error('Search users error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to search users' 
@@ -726,7 +928,7 @@ io.use(async (socket, next) => {
 const onlineUsers = new Map();
 
 io.on('connection', (socket) => {
-  console.log('✅ User connected:', socket.userId);
+  console.log('User connected:', socket.userId);
   
   onlineUsers.set(socket.userId.toString(), socket.id);
   
@@ -780,7 +982,7 @@ io.on('connection', (socket) => {
       });
 
     } catch (error) {
-      console.error('❌ Send message error:', error);
+      console.error('Send message error:', error);
       socket.emit('message-error', { error: 'Failed to send message' });
     }
   });
@@ -810,12 +1012,12 @@ io.on('connection', (socket) => {
         readAt: new Date()
       });
     } catch (error) {
-      console.error('❌ Mark read error:', error);
+      console.error('Mark read error:', error);
     }
   });
 
   socket.on('disconnect', async () => {
-    console.log('❌ User disconnected:', socket.userId);
+    console.log('User disconnected:', socket.userId);
     
     onlineUsers.delete(socket.userId.toString());
     
@@ -834,8 +1036,7 @@ app.get('/health', (req, res) => {
     success: true, 
     message: 'Server is running', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    auth: 'simple-no-otp'
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -845,5 +1046,5 @@ server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📡 WebSocket server ready`);
   console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`✅ Simple auth system active (no OTP)`);
+  console.log(`🌐 Allowed origins: ${allowedOrigins.join(', ') || 'None'}`);
 });

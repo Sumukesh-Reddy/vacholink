@@ -11,7 +11,7 @@ import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import ChatPage from './pages/ChatPage';
 import ProfilePage from './pages/ProfilePage';
-
+import ProfileCompletion from './components/Profile/ProfileCompletion';
 
 function App() {
   return (
@@ -37,7 +37,14 @@ function App() {
                     <ProfilePage />
                   </PrivateRoute>
                 } />
-                
+                <Route 
+                  path="/complete-profile" 
+                  element={
+                    <PrivateRoute>
+                      <ProfileCompletion />
+                    </PrivateRoute>
+                  } 
+                />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
             </main>

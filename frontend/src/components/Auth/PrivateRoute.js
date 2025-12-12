@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth();
   const [stars, setStars] = useState([]);
+  const location = useLocation();
 
   useEffect(() => {
     if (loading) {
@@ -411,7 +412,22 @@ const PrivateRoute = ({ children }) => {
     );
   }
 
-  return user ? children : <Navigate to="/login" />;
+  // If no user, redirect to login
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  // If user needs profile completion and is not already on the profile completion page
+  if (user.needsProfileCompletion && location.pathname !== '/complete-profile') {
+    return <Navigate to="/complete-profile" />;
+  }
+
+  // If user is on profile completion page but doesn't need it anymore, redirect to home
+  if (location.pathname === '/complete-profile' && !user.needsProfileCompletion) {
+    return <Navigate to="/" />;
+  }
+
+  return children;
 };
 
 export default PrivateRoute;

@@ -39,29 +39,18 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      toast.error('Please enter both email and password');
-      return;
-    }
-
     setLoading(true);
 
-    try {
-      const result = await login(email, password);
-      
-      if (result.success) {
-        toast.success('Login successful!');
-        navigate('/');
-      } else {
-        toast.error(result.message || 'Login failed');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      toast.error('An error occurred during login');
-    } finally {
-      setLoading(false);
+    const result = await login(email, password);
+    
+    if (result.success) {
+      toast.success('Login successful!');
+      navigate('/');
+    } else {
+      toast.error(result.message);
     }
+    
+    setLoading(false);
   };
 
   return (
@@ -131,7 +120,6 @@ const Login = () => {
               placeholder="Enter your email"
               required
               className="login-input"
-              disabled={loading}
             />
           </div>
 
@@ -145,7 +133,6 @@ const Login = () => {
               placeholder="Enter your password"
               required
               className="login-input"
-              disabled={loading}
             />
           </div>
 
@@ -154,7 +141,6 @@ const Login = () => {
               type="checkbox"
               id="remember"
               className="login-checkbox"
-              disabled={loading}
             />
             <label htmlFor="remember" className="login-remember-label">
               Remember me
@@ -397,11 +383,6 @@ const Login = () => {
           background: rgba(32, 34, 37, 0.9);
         }
 
-        .login-input:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
         /* Remember me checkbox */
         .login-remember {
           display: flex;
@@ -416,11 +397,6 @@ const Login = () => {
           accent-color: #7289da;
           cursor: pointer;
           border-radius: 3px;
-        }
-
-        .login-checkbox:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
         }
 
         .login-remember-label {
@@ -451,12 +427,10 @@ const Login = () => {
         .login-button:disabled {
           background: #677bc4;
           cursor: not-allowed;
-          opacity: 0.7;
         }
 
         .login-button:not(:disabled):hover {
           transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(114, 137, 218, 0.3);
         }
 
         .login-button-glow {
@@ -505,92 +479,6 @@ const Login = () => {
         .login-link:hover {
           background: rgba(114, 137, 218, 0.1);
           transform: translateY(-1px);
-        }
-
-        /* Social links */
-        .form-social-links {
-          margin-top: 25px;
-          margin-bottom: 10px;
-        }
-
-        .social-links-container {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 8px;
-          margin-bottom: 10px;
-        }
-
-        .form-social-link {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 10px 5px;
-          background: rgba(32, 34, 37, 0.5);
-          border-radius: 6px;
-          color: #b9bbbe;
-          text-decoration: none;
-          transition: all 0.3s;
-          border: 1px solid transparent;
-          min-height: 60px;
-        }
-
-        .form-social-link:hover {
-          background: rgba(114, 137, 218, 0.1);
-          border-color: rgba(114, 137, 218, 0.3);
-          color: #ffffff;
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(114, 137, 218, 0.2);
-        }
-
-        .social-icon {
-          font-size: 16px;
-          font-weight: bold;
-          margin-bottom: 4px;
-          font-family: 'Courier New', monospace;
-          height: 24px;
-          width: 24px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(0, 0, 0, 0.3);
-          border-radius: 4px;
-          padding: 2px;
-        }
-
-        .social-label {
-          font-size: 10px;
-          font-weight: 500;
-          opacity: 0.9;
-          text-align: center;
-        }
-
-        .social-divider {
-          position: relative;
-          text-align: center;
-          margin: 15px 0;
-          color: #8e9297;
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-
-        .social-divider::before {
-          content: '';
-          position: absolute;
-          top: 50%;
-          left: 0;
-          right: 0;
-          height: 1px;
-          background: rgba(32, 34, 37, 0.5);
-          z-index: 1;
-        }
-
-        .social-divider span {
-          position: relative;
-          background: rgba(47, 49, 54, 0.9);
-          padding: 0 15px;
-          z-index: 2;
         }
 
         /* Animations */
@@ -719,31 +607,6 @@ const Login = () => {
             padding: 6px 12px;
             font-size: 13px;
           }
-
-          .social-links-container {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 6px;
-          }
-          
-          .form-social-link {
-            padding: 8px 4px;
-            min-height: 55px;
-          }
-          
-          .social-icon {
-            font-size: 14px;
-            height: 22px;
-            width: 22px;
-          }
-          
-          .social-label {
-            font-size: 9px;
-          }
-          
-          .social-divider {
-            font-size: 10px;
-            margin: 12px 0;
-          }
         }
 
         /* Small mobile */
@@ -775,7 +638,118 @@ const Login = () => {
             min-height: 42px;
           }
         }
+          .form-social-links {
+            margin-top: 25px;
+            margin-bottom: 10px;
+          }
 
+          .social-links-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+          }
+
+          .form-social-link {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 5px;
+            background: rgba(32, 34, 37, 0.5);
+            border-radius: 6px;
+            color: #b9bbbe;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+            min-height: 60px;
+          }
+
+          .form-social-link:hover {
+            background: rgba(114, 137, 218, 0.1);
+            border-color: rgba(114, 137, 218, 0.3);
+            color: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(114, 137, 218, 0.2);
+          }
+
+          .social-icon {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-family: 'Courier New', monospace;
+            height: 24px;
+            width: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            padding: 2px;
+          }
+
+          .social-label {
+            font-size: 10px;
+            font-weight: 500;
+            opacity: 0.9;
+            text-align: center;
+          }
+
+          .social-divider {
+            position: relative;
+            text-align: center;
+            margin: 15px 0;
+            color: #8e9297;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+
+          .social-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: rgba(32, 34, 37, 0.5);
+            z-index: 1;
+          }
+
+          .social-divider span {
+            position: relative;
+            background: rgba(47, 49, 54, 0.9);
+            padding: 0 15px;
+            z-index: 2;
+          }
+
+          /* Mobile styles */
+          @media (max-width: 768px) {
+            .social-links-container {
+              grid-template-columns: repeat(2, 1fr);
+              gap: 6px;
+            }
+            
+            .form-social-link {
+              padding: 8px 4px;
+              min-height: 55px;
+            }
+            
+            .social-icon {
+              font-size: 14px;
+              height: 22px;
+              width: 22px;
+            }
+            
+            .social-label {
+              font-size: 9px;
+            }
+            
+            .social-divider {
+              font-size: 10px;
+              margin: 12px 0;
+            }
+          }
         /* Large screens */
         @media (min-width: 1200px) {
           .login-form-container {
