@@ -80,9 +80,10 @@ const handleGoogleSuccess = async (credentialResponse) => {
         );
       } else {
         // Existing user - login directly
-        toast.success('Welcome back! Login successful');
+        // toast.success('Welcome back! Login successful');
         // localStorage.setItem('token', response.data.token);
         // localStorage.setItem('user', JSON.stringify(response.data.user));
+        // toast.success('Please signIn, you ');
         navigate('/');
       }
     } else {
