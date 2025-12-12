@@ -79,7 +79,8 @@ const Register = () => {
           );
         } else {
           // Existing user - login directly
-          toast.success('Please SignIn!');    
+          toast.success('Please SignIn!');   
+          toast.success('Check login help for passoword');
           // localStorage.setItem('token', response.data.token);
           // localStorage.setItem('user', JSON.stringify(response.data.user));
           navigate('/'); 
