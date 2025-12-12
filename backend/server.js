@@ -244,11 +244,12 @@ const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString()
 // ========== GOOGLE AUTH ROUTES ==========
 
 // Google Authentication
+// In server.js, update the Google auth route:
 app.post('/api/auth/google', async (req, res) => {
   try {
     const { credential } = req.body;
 
-    console.log('🔐 Google auth request received');
+    console.log('🔐 Google auth request received from:', req.headers.origin);
 
     if (!credential) {
       return res.status(400).json({ 
@@ -257,10 +258,22 @@ app.post('/api/auth/google', async (req, res) => {
       });
     }
 
+    // Log Google Client ID (first few chars for security)
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    console.log('Google Client ID being used:', clientId ? `${clientId.substring(0, 10)}...` : 'NOT SET');
+
+    if (!clientId) {
+      console.error('❌ GOOGLE_CLIENT_ID environment variable is not set!');
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Server configuration error: Google Client ID missing' 
+      });
+    }
+
     // Verify Google token
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID
+      audience: clientId
     });
 
     const payload = ticket.getPayload();
@@ -276,17 +289,28 @@ app.post('/api/auth/google', async (req, res) => {
     let isNewUser = false;
 
     if (!user) {
+      // Generate a unique name if name is not available
+      const displayName = name || email.split('@')[0];
+      let uniqueName = displayName;
+      let counter = 1;
+      
+      // Check if name exists, append number if it does
+      while (await User.findOne({ name: uniqueName })) {
+        uniqueName = `${displayName}${counter}`;
+        counter++;
+      }
+
       // New user - create with minimal info
       user = await User.create({
         googleId,
         email,
-        name: name || email.split('@')[0],
+        name: uniqueName,
         profilePhoto: picture || '',
         isVerified: true,
         needsProfileCompletion: true
       });
       isNewUser = true;
-      console.log('👤 New Google user created:', email);
+      console.log('👤 New Google user created:', email, 'with name:', uniqueName);
     } else {
       // Existing user - update last seen
       user.online = true;
@@ -320,10 +344,26 @@ app.post('/api/auth/google', async (req, res) => {
       needsProfileCompletion: user.needsProfileCompletion || false
     });
   } catch (error) {
-    console.error('❌ Google auth error:', error);
+    console.error('❌ Google auth error details:', {
+      message: error.message,
+      stack: error.stack,
+      clientId: process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Not set'
+    });
+    
+    // More specific error messages
+    let errorMessage = 'Google authentication failed';
+    if (error.message.includes('Invalid token signature')) {
+      errorMessage = 'Invalid Google token. Please try again.';
+    } else if (error.message.includes('Token used too late')) {
+      errorMessage = 'Google token expired. Please try again.';
+    } else if (error.message.includes('audience')) {
+      errorMessage = 'Google Client ID mismatch. Please check server configuration.';
+    }
+    
     res.status(401).json({ 
       success: false, 
-      message: 'Google authentication failed' 
+      message: errorMessage,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

@@ -124,7 +124,6 @@ const Register = () => {
           {loading ? (
             <div className="loading-spinner">
               <div className="spinner"></div>
-              <span>Creating account...</span>
             </div>
           ) : (
             <GoogleLogin
@@ -139,20 +138,6 @@ const Register = () => {
           )}
         </div>
 
-        {/* Info Box */}
-        <div className="register-info">
-          <p className="register-info-text">
-            <strong>Why Google Signup?</strong>
-            <br />
-            • Secure, one-click registration
-            <br />
-            • No need to remember passwords
-            <br />
-            • Verified email address
-            <br />
-            • Quick profile setup
-          </p>
-        </div>
 
         {/* Footer */}
         <div className="register-footer">
@@ -270,7 +255,7 @@ const Register = () => {
           -webkit-backdrop-filter: blur(10px);
           border-radius: 12px;
           padding: 40px;
-          width: 100%;
+          width: "300px";
           max-width: 450px;
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
           border: 1px solid rgba(32, 34, 37, 0.5);
