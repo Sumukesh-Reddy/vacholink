@@ -39,55 +39,62 @@ const Register = () => {
   }, []);
 
   // Handle Google signup success
-  const handleGoogleSuccess = async (credentialResponse) => {
-    setLoading(true);
-    try {
-      const response = await axios.post(`${API_URL}/api/auth/google`, {
-        credential: credentialResponse.credential
-      });
+  // Handle Google signup success
+const handleGoogleSuccess = async (credentialResponse) => {
+  setLoading(true);
+  try {
+    const response = await axios.post(`${API_URL}/api/auth/google`, {
+      credential: credentialResponse.credential
+    });
 
-      if (response.data.success) {
-        const { isNewUser, defaultPassword, user } = response.data;
+    console.log('Google response:', response.data); // Debug
+
+    if (response.data.success) {
+      const { isNewUser, user } = response.data;
+      
+      if (isNewUser) {
+        // Generate default password from email
+        const emailUsername = user.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+        const defaultPassword = `${emailUsername}@vacholink`;
         
-        if (isNewUser) {
-          // Store success data to show in box
-          setSuccessData({
-            email: user.email,
-            password: defaultPassword,
-            name: user.name
-          });
-          
-          // Clear any existing auth data
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          
-          // Show success toast
-          toast.success(
-            <div style={{ padding: '5px' }}>
-              <p style={{ margin: 0 }}>✅ Account created! Check your credentials below.</p>
-            </div>,
-            {
-              autoClose: 3000,
-              position: "top-center"
-            }
-          );
-        } else {
-          // Existing user - login directly
-          toast.success('Welcome back! Login successful');
-          localStorage.setItem('token', response.data.token);
-          localStorage.setItem('user', JSON.stringify(response.data.user));
-          navigate('/');
-        }
+        // Store success data to show in box
+        setSuccessData({
+          email: user.email,
+          password: defaultPassword,
+          name: user.name
+        });
+        
+        // Clear any existing auth data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        // Show success toast
+        toast.success(
+          <div style={{ padding: '5px' }}>
+            <p style={{ margin: 0 }}>✅ Account created! Check your credentials below.</p>
+          </div>,
+          {
+            autoClose: 3000,
+            position: "top-center"
+          }
+        );
       } else {
-        toast.error(response.data.message);
+        // Existing user - login directly
+        toast.success('Welcome back! Login successful');
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        navigate('/');
       }
-    } catch (error) {
-      console.error('Google signup error:', error);
-      toast.error(error.response?.data?.message || 'Google signup failed');
-    } finally {
-      setLoading(false);
+    } else {
+      toast.error(response.data.message);
     }
-  };
+  } catch (error) {
+    console.error('Google signup error:', error);
+    toast.error(error.response?.data?.message || 'Google signup failed');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleGoogleError = () => {
     toast.error('Google signup failed. Please try again.');
@@ -289,7 +296,7 @@ const Register = () => {
                 <code>Gmailusername@vacholink</code>
               </p>
               <p className="password-note">
-                Example: If your email is "john123@gmail.com", password is "john123@vacholink"
+                Example: If your email is "sumukesh123@gmail.com", password is "sumukesh123@vacholink"
               </p>
             </div>
 
