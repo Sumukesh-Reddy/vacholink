@@ -109,7 +109,6 @@ const Register = () => {
 
   const handleGoToLogin = () => {
     setSuccessData(null);
-    navigate('/login');
   };
 
   return (
