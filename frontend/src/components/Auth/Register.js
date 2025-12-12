@@ -83,7 +83,7 @@ const handleGoogleSuccess = async (credentialResponse) => {
         toast.success('Welcome back! Login successful');
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
-        navigate('/');
+        navigate('/register');
       }
     } else {
       toast.error(response.data.message);
