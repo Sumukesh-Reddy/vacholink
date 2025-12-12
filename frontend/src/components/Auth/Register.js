@@ -267,7 +267,6 @@ const Register = () => {
               {loading ? (
                 <div className="loading-spinner">
                   <div className="spinner"></div>
-                  <span>Creating your account...</span>
                 </div>
               ) : (
                 <GoogleLogin
