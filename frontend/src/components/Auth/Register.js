@@ -212,7 +212,7 @@ const Register = () => {
                 <ul className="instructions-list">
                   <li>1. Go to Login page</li>
                   <li>2. Enter your email and password above</li>
-                  <li>3. After login, go to Settings</li>
+                  <li>3. After login, go to profile</li>
                   <li>4. Change your password for security</li>
                 </ul>
               </div>
@@ -255,11 +255,11 @@ const Register = () => {
             {/* Information Box */}
             <div className="register-info">
               <p className="register-info-text">
-                <strong>🚀 How it works:</strong><br/>
+                <strong>ꍡ How it works:</strong><br/>
                 1. Sign up with Google<br/>
                 2. We'll create your account with a default password<br/>
                 3. Login with your email and password<br/>
-                4. Change your password in settings for security
+                4. Change your password in profile for security
               </p>
             </div>
 
