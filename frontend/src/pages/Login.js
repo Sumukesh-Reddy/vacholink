@@ -2,7 +2,7 @@ import React, { useContext, useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 import axios from "axios";
 import { AuthContext } from "../AuthContext";
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
+const API_URL =  "https://vacholink.onrender.com" || process.env.REACT_APP_API_URL ;
 
 export default function Login() {
   const { login } = useContext(AuthContext);

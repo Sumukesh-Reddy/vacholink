@@ -27,10 +27,18 @@ app.use(helmet());
 app.set('trust proxy', 1);
 
 // CORS configuration
-const allowedOrigins = (process.env.CLIENT_URL || '')
-  .split(',')
-  .map(o => o.trim())
-  .filter(Boolean);
+const defaultAllowedOrigins = [
+  'https://vacholink.vercel.app',
+  'http://localhost:3000'
+];
+
+const allowedOrigins = Array.from(new Set([
+  ...defaultAllowedOrigins,
+  ...(process.env.CLIENT_URL || '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean)
+]));
 
 const corsOptions = {
   origin: (origin, callback) => {
