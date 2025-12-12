@@ -154,6 +154,8 @@ const userSchema = new mongoose.Schema({
     default: 'user' 
   },
   isVerified: { type: Boolean, default: false },
+  isGoogleUser: { type: Boolean, default: false },
+  needsPasswordChange: { type: Boolean, default: false },
   resetToken: String,
   resetTokenExpires: Date,
   needsProfileCompletion: { type: Boolean, default: false },
@@ -288,35 +290,38 @@ app.post('/api/auth/google', async (req, res) => {
 
     let isNewUser = false;
 
+   
     if (!user) {
-      // Generate a unique name if name is not available
+      
       const displayName = name || email.split('@')[0];
       let uniqueName = displayName;
       let counter = 1;
-      
-      // Check if name exists, append number if it does
+
       while (await User.findOne({ name: uniqueName })) {
         uniqueName = `${displayName}${counter}`;
         counter++;
       }
 
-      // New user - create with minimal info
+      const defaultPassword = `${uniqueName}@vacholink`;
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(defaultPassword, salt);
       user = await User.create({
         googleId,
         email,
         name: uniqueName,
+        password: hashedPassword,
         profilePhoto: picture || '',
         isVerified: true,
-        needsProfileCompletion: true
+        isGoogleUser: true, 
+        needsPasswordChange: true 
       });
       isNewUser = true;
-      console.log('👤 New Google user created:', email, 'with name:', uniqueName);
+      console.log('👤 New Google user created:', email, 'with default password');
     } else {
-      // Existing user - update last seen
+     
       user.online = true;
       user.lastSeen = new Date();
       
-      // If existing user doesn't have googleId, update it
       if (!user.googleId) {
         user.googleId = googleId;
       }

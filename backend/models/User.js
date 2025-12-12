@@ -6,8 +6,9 @@ const userSchema = new mongoose.Schema(
     name: String,
     email: { type: String, unique: true },
     avatar: String,
-    needsProfileCompletion: { type: Boolean, default: false }, // Add this line
-    password: { type: String, select: false }, // Add this for password storage
+    isGoogleUser: { type: Boolean, default: false },
+    needsPasswordChange: { type: Boolean, default: false },
+    password: { type: String, select: false },
   },
   { timestamps: true }
 );

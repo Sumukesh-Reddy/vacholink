@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { toast } from 'react-toastify';
 import axios from 'axios';
-import { useAuth } from '../../contexts/AuthContext';
 
 const API_URL = process.env.REACT_APP_API_URL || "https://vacholink.onrender.com";
 
@@ -11,7 +10,6 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [stars, setStars] = useState([]);
   const navigate = useNavigate();
-  const { login } = useAuth();
 
   useEffect(() => {
     // Generate responsive stars
@@ -48,20 +46,39 @@ const Register = () => {
       });
 
       if (response.data.success) {
-        // Call login with user object and token
-        const loginResult = await login(response.data.user, response.data.token);
+        const { isNewUser, defaultPassword, user } = response.data;
         
-        if (loginResult.success) {
-          toast.success('Google signup successful!');
+        if (isNewUser) {
+          // Show detailed success message for new users
+          toast.success(
+            <div style={{ padding: '10px' }}>
+              <h4 style={{ margin: '0 0 10px 0', color: '#43b581' }}>🎉 Account Created Successfully!</h4>
+              <p><strong>Your login credentials:</strong></p>
+              <p>📧 <strong>Email:</strong> {user.email}</p>
+              <p>🔑 <strong>Password:</strong> {defaultPassword}</p>
+              <p style={{ fontSize: '12px', color: '#8e9297', marginTop: '10px' }}>
+                Please login with these credentials and change your password in settings.
+              </p>
+            </div>,
+            {
+              autoClose: 15000, // 15 seconds
+              closeButton: true,
+              position: "top-center"
+            }
+          );
           
-          // Check if profile completion is needed
-          if (response.data.needsProfileCompletion) {
-            navigate('/complete-profile');
-          } else {
-            navigate('/');
-          }
+          // Clear any existing auth data
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          
+          // Redirect to login page
+          navigate('/login');
         } else {
-          toast.error(loginResult.message || 'Signup failed');
+          // Existing user - login directly
+          toast.success('Welcome back! Login successful');
+          localStorage.setItem('token', response.data.token);
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+          navigate('/');
         }
       } else {
         toast.error(response.data.message);
@@ -119,11 +136,23 @@ const Register = () => {
           <p className="register-subtitle">Sign up with Google to get started</p>
         </div>
 
+        {/* Information Box */}
+        <div className="register-info">
+          <p className="register-info-text">
+            <strong>🚀 How it works:</strong><br/>
+            1. Sign up with Google<br/>
+            2. We'll create your account with a default password<br/>
+            3. Login with your email and password<br/>
+            4. Change your password in settings for security
+          </p>
+        </div>
+
         {/* Google Signup Button */}
         <div className="google-signup-container">
           {loading ? (
             <div className="loading-spinner">
               <div className="spinner"></div>
+              <span>Creating your account...</span>
             </div>
           ) : (
             <GoogleLogin
@@ -138,6 +167,16 @@ const Register = () => {
           )}
         </div>
 
+        {/* Quick Login Info */}
+        <div className="quick-login-info">
+          <h4>📝 Your default password will be:</h4>
+          <p className="password-example">
+            <code>yourname@vacholink</code>
+          </p>
+          <p className="password-note">
+            Example: If your name is "John Doe", password is "JohnDoe@vacholink"
+          </p>
+        </div>
 
         {/* Footer */}
         <div className="register-footer">
@@ -255,7 +294,7 @@ const Register = () => {
           -webkit-backdrop-filter: blur(10px);
           border-radius: 12px;
           padding: 40px;
-          width: "300px";
+          width: 100%;
           max-width: 450px;
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
           border: 1px solid rgba(32, 34, 37, 0.5);
@@ -310,6 +349,28 @@ const Register = () => {
           font-size: 14px;
         }
 
+        /* Info Box */
+        .register-info {
+          background: rgba(32, 34, 37, 0.5);
+          border-radius: 8px;
+          padding: 15px;
+          margin: 25px 0;
+          border: 1px solid rgba(32, 34, 37, 0.8);
+        }
+
+        .register-info-text {
+          color: #b9bbbe;
+          font-size: 13px;
+          line-height: 1.6;
+          margin: 0;
+        }
+
+        .register-info-text strong {
+          color: #ffffff;
+          display: block;
+          margin-bottom: 8px;
+        }
+
         /* Google Signup Container */
         .google-signup-container {
           margin: 30px 0;
@@ -338,26 +399,41 @@ const Register = () => {
           font-size: 14px;
         }
 
-        /* Info Box */
-        .register-info {
-          background: rgba(32, 34, 37, 0.5);
+        /* Quick Login Info */
+        .quick-login-info {
+          background: rgba(67, 181, 129, 0.1);
+          border: 1px solid rgba(67, 181, 129, 0.3);
           border-radius: 8px;
           padding: 15px;
-          margin: 25px 0;
-          border: 1px solid rgba(32, 34, 37, 0.8);
+          margin: 20px 0;
+          text-align: center;
         }
 
-        .register-info-text {
-          color: #b9bbbe;
-          font-size: 13px;
-          line-height: 1.6;
-          margin: 0;
+        .quick-login-info h4 {
+          color: #43b581;
+          margin: 0 0 10px 0;
+          font-size: 14px;
         }
 
-        .register-info-text strong {
+        .password-example {
+          margin: 10px 0;
+        }
+
+        .password-example code {
+          background: rgba(0, 0, 0, 0.3);
           color: #ffffff;
-          display: block;
-          margin-bottom: 8px;
+          padding: 8px 12px;
+          border-radius: 4px;
+          font-family: 'Courier New', monospace;
+          font-size: 14px;
+          font-weight: bold;
+          display: inline-block;
+        }
+
+        .password-note {
+          color: #8e9297;
+          font-size: 12px;
+          margin: 5px 0 0 0;
         }
 
         /* Footer */
@@ -552,6 +628,19 @@ const Register = () => {
           .register-link {
             padding: 6px 12px;
             font-size: 13px;
+          }
+
+          .quick-login-info {
+            padding: 12px;
+          }
+
+          .password-example code {
+            font-size: 13px;
+            padding: 6px 10px;
+          }
+
+          .password-note {
+            font-size: 11px;
           }
 
           .social-links-container {

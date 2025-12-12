@@ -10,7 +10,7 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [stars, setStars] = useState([]);
-
+  const [showInstructions, setShowInstructions] = useState(false);
   useEffect(() => {
     // Generate responsive stars
     const generateStars = () => {
@@ -159,6 +159,32 @@ const Login = () => {
           </button>
         </form>
 
+        
+<div className="new-user-instructions">
+  <button
+    type="button"
+    onClick={() => setShowInstructions(!showInstructions)}
+    className="instructions-toggle"
+  >
+    {showInstructions ? '▼ Hide' : '▶ Show'} login help for new Google users
+  </button>
+  
+  {showInstructions && (
+    <div className="instructions-content">
+      <h4>👋 Welcome New Google Users!</h4>
+      <p>Your login credentials:</p>
+      <div className="credentials-box">
+        <p><strong>📧 Email:</strong> Your Google email</p>
+        <p><strong>🔑 Password:</strong> Your display name + "@vacholink"</p>
+        <p className="example">Example: If your name is "John", password is "John@vacholink"</p>
+      </div>
+      <p className="security-note">
+        <small>🔒 Please change your password in settings after login for security.</small>
+      </p>
+    </div>
+  )}
+</div>
+
         {/* Footer */}
         <div className="login-footer">
           <p>Don't have an account?</p>
@@ -225,6 +251,71 @@ const Login = () => {
           padding: 20px;
           position: relative;
           overflow: hidden;
+        }
+
+        .new-user-instructions {
+          margin: 20px 0;
+          background: rgba(67, 181, 129, 0.05);
+          border-radius: 8px;
+          overflow: hidden;
+        }
+
+        .instructions-toggle {
+          width: 100%;
+          padding: 12px;
+          background: transparent;
+          border: none;
+          color: #43b581;
+          font-weight: 600;
+          cursor: pointer;
+          text-align: left;
+          font-size: 13px;
+          transition: all 0.2s;
+        }
+
+        .instructions-toggle:hover {
+          background: rgba(67, 181, 129, 0.1);
+        }
+
+        .instructions-content {
+          padding: 15px;
+          border-top: 1px solid rgba(67, 181, 129, 0.2);
+        }
+
+        .instructions-content h4 {
+          color: #43b581;
+          margin: 0 0 10px 0;
+          font-size: 14px;
+        }
+
+        .instructions-content p {
+          color: #b9bbbe;
+          margin: 5px 0;
+          font-size: 13px;
+        }
+
+        .credentials-box {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 6px;
+          padding: 10px;
+          margin: 10px 0;
+        }
+
+        .credentials-box strong {
+          color: #ffffff;
+        }
+
+        .example {
+          font-style: italic;
+          color: #8e9297;
+          font-size: 12px !important;
+          margin-top: 5px !important;
+        }
+
+        .security-note {
+          color: #ed4245 !important;
+          font-size: 12px !important;
+          margin-top: 10px !important;
         }
 
         .login-bg-gradient {
