@@ -79,16 +79,7 @@ const Register = () => {
           );
         } else {
           // Existing user - login directly
-          toast.success('Please SignIn!');
-          toast.success(
-            <div style={{ padding: '5px' }}>
-              <p style={{ margin: 0 }}>{successData.password}</p>
-            </div>,
-            {
-              autoClose: 3000,
-              position: "top-center"
-            }
-          );       
+          toast.success('Please SignIn!');    
           // localStorage.setItem('token', response.data.token);
           // localStorage.setItem('user', JSON.stringify(response.data.user));
           navigate('/'); 
