@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 
-const API_URL = process.env.REACT_APP_API_URL || "https://vacholink.onrender.com";
+const API_URL =  "https://vacholink.onrender.com" || process.env.REACT_APP_API_URL;
 
 const ProfileCompletion = () => {
   const [name, setName] = useState('');
