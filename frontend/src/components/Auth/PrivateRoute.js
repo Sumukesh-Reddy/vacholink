@@ -419,7 +419,7 @@ const PrivateRoute = ({ children }) => {
 
   // If user needs profile completion and is not already on the profile completion page
   if (user.needsPasswordChange && location.pathname !== '/change-password') {
-    return <Navigate to="/change-password" />;
+    return <Navigate to="/profile" />;
   }
   
 
