@@ -175,7 +175,7 @@ const Login = () => {
       <p>Your login credentials:</p>
       <div className="credentials-box">
         <p><strong>📧 Email:</strong> Your Google email</p>
-        <p><strong>🔑 Password:</strong> Your Goodle mail + "@vacholink"</p>
+        <p><strong>🔑 Password:</strong> Your Google mail name + "@vacholink"</p>
         <p className="example">Example: If your gmail is "sumukesh@gmail.com", password is "sumukesh@vacholink"</p>
       </div>
       <p className="security-note">
