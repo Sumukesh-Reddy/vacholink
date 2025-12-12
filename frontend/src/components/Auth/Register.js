@@ -287,7 +287,7 @@ const Register = () => {
             <div className="quick-login-info">
               <h4>📝 Your default password will be:</h4>
               <p className="password-example">
-                <code>emailusername@vacholink</code>
+                <code>Gmailusername@vacholink</code>
               </p>
               <p className="password-note">
                 Example: If your email is "john123@gmail.com", password is "john123@vacholink"
