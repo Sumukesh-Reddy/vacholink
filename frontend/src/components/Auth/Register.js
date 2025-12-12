@@ -174,7 +174,7 @@ const Register = () => {
             <code>yourname@vacholink</code>
           </p>
           <p className="password-note">
-            Example: If your name is "John Doe", password is "JohnDoe@vacholink"
+            Example: If your name is "Sumukesh Reddy", password is "SumukeshReddy@vacholink"
           </p>
         </div>
 
