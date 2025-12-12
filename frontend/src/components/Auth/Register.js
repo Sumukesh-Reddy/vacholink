@@ -4,12 +4,16 @@ import { GoogleLogin } from '@react-oauth/google';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || "https://vacholink.onrender.com";
+const API_URL =  "https://vacholink.onrender.com" || process.env.REACT_APP_API_URL ;
 
 const Register = () => {
   const [loading, setLoading] = useState(false);
   const [stars, setStars] = useState([]);
-  const [successData, setSuccessData] = useState(null);
+  const [showPasswordSetup, setShowPasswordSetup] = useState(false);
+  const [passwordSetupData, setPasswordSetupData] = useState(null);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,54 +46,32 @@ const Register = () => {
   const handleGoogleSuccess = async (credentialResponse) => {
     setLoading(true);
     try {
+      console.log('🔄 Sending Google credential to server...');
       const response = await axios.post(`${API_URL}/api/auth/google`, {
         credential: credentialResponse.credential
       });
 
-      console.log('Google response:', response.data);
+      console.log('✅ Server response:', response.data);
 
       if (response.data.success) {
-        const { isNewUser, user } = response.data;
+        const { user, token } = response.data;
         
-        if (isNewUser) {
-          // Generate default password from email
-          const emailUsername = user.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
-          const defaultPassword = `${emailUsername}@vacholink`;
-          
-          // Store success data to show in box
-          setSuccessData({
-            email: user.email,
-            password: defaultPassword,
-            name: user.name
-          });
-          
-          // Clear any existing auth data
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          
-          // Show success toast
-          toast.success(
-            <div style={{ padding: '5px' }}>
-              <p style={{ margin: 0 }}>✅ Account created! Check your credentials below.</p>
-            </div>,
-            {
-              autoClose: 3000,
-              position: "top-center"
-            }
-          );
-        } else {
-          // Existing user - login directly
-          toast.success('Please SignIn!');   
-          toast.success('Check login help for passoword');
-          // localStorage.setItem('token', response.data.token);
-          // localStorage.setItem('user', JSON.stringify(response.data.user));
-          navigate('/'); 
-        }
+        // ALWAYS show password setup for Google users
+        console.log('🎯 Showing password setup modal');
+        setPasswordSetupData({
+          email: user.email,
+          name: user.name,
+          token: token,
+          userId: user._id
+        });
+        setShowPasswordSetup(true);
+        
+        
       } else {
         toast.error(response.data.message);
       }
     } catch (error) {
-      console.error('Google signup error:', error);
+      console.error(' Google signup error:', error);
       toast.error(error.response?.data?.message || 'Google signup failed');
     } finally {
       setLoading(false);
@@ -100,22 +82,118 @@ const Register = () => {
     toast.error('Google signup failed. Please try again.');
   };
 
-  const handleCopyPassword = () => {
-    if (successData?.password) {
-      navigator.clipboard.writeText(successData.password);
-      toast.success('Password copied to clipboard!');
+  const validatePassword = () => {
+    if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters long');
+      return false;
+    }
+    if (password !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return false;
+    }
+    setPasswordError('');
+    return true;
+  };
+
+  const handlePasswordSetup = async () => {
+    if (!validatePassword()) return;
+  
+    try {
+      console.log('🔄 Setting password for user:', passwordSetupData.email);
+      
+      // Extract username from email for default password
+      const emailUsername = passwordSetupData.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+      const defaultPassword = `${emailUsername}@vacholink`;
+      
+      console.log('🔑 Auto-generated default password:', defaultPassword);
+      
+      // Use the default password as currentPassword
+      const response = await axios.post(`${API_URL}/api/auth/change-password`, 
+        {
+          currentPassword: defaultPassword, // Use auto-generated default
+          newPassword: password
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${passwordSetupData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+  
+      if (response.data.success) {
+        // Update user data and proceed
+        const updatedUser = {
+          ...passwordSetupData,
+          needsPasswordChange: false
+        };
+        
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        toast.success(' Password changed successfully!');
+        setShowPasswordSetup(false);
+        navigate('/');
+      } else {
+        toast.error(response.data.message || 'Failed to set password');
+      }
+    } catch (error) {
+      console.error('Password setup error:', error);
+      
+      // If default password doesn't work, try empty password as fallback
+      if (error.response?.status === 401) {
+        console.log('🔄 Default password failed, trying empty password...');
+        
+        try {
+          const fallbackResponse = await axios.post(`${API_URL}/api/auth/change-password`, 
+            {
+              currentPassword: '', // Try empty as fallback
+              newPassword: password
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${passwordSetupData.token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          
+          if (fallbackResponse.data.success) {
+            localStorage.setItem('user', JSON.stringify({
+              ...passwordSetupData,
+              needsPasswordChange: false
+            }));
+            toast.success(' Password set successfully!');
+            setShowPasswordSetup(false);
+            navigate('/');
+          } else {
+            toast.error('Failed to set password. Please contact support.');
+          }
+        } catch (fallbackError) {
+          toast.error('Could not set password. Please try logging in manually.');
+          setShowPasswordSetup(false);
+          navigate('/login');
+        }
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to set password');
+      }
     }
   };
 
-  const handleCopyEmail = () => {
-    if (successData?.email) {
-      navigator.clipboard.writeText(successData.email);
-      toast.success('Email copied to clipboard!');
-    }
-  };
-
-  const handleGoToLogin = () => {
-    setSuccessData(null);
+  const handlePasswordSetupLater = () => {
+    // Store temporary data
+    localStorage.setItem('tempToken', passwordSetupData.token);
+    localStorage.setItem('tempUser', JSON.stringify(passwordSetupData));
+    
+    toast.info(
+      <div style={{ padding: '5px' }}>
+        <p style={{ margin: 0 }}>⚠️ Please set your password on first login!</p>
+        <p style={{ margin: 0, fontSize: '12px' }}>Go to profile → Change password</p>
+      </div>,
+      {
+        autoClose: 5000,
+        position: "top-center"
+      }
+    );
+    setShowPasswordSetup(false);
     navigate('/login');
   };
 
@@ -143,220 +221,217 @@ const Register = () => {
         ))}
       </div>
       
-      
       <div className="register-glow" />
 
-      <div className="register-form-container">
-       
-        <div className="register-form-glow" />
-        
-        {successData ? (
-          <div className="success-container">
-            {/* Header */}
-            <div className="success-header">
-              <div className="success-icon">
-                ✅
-              </div>
-              <h2 className="success-title">Account Created Successfully!</h2>
-              <p className="success-subtitle">
-                Here are your login credentials. Please save them securely.
+      {/* Password Setup Modal */}
+      {showPasswordSetup && passwordSetupData && (
+        <div className="password-modal-overlay">
+          <div className="password-modal">
+            <div className="password-modal-header">
+              <div className="password-modal-icon">🔐</div>
+              <h3 className="password-modal-title">Set Your Password</h3>
+              <p className="password-modal-subtitle">
+                Please create a secure password for your account
               </p>
             </div>
 
-            {/* Credentials Box */}
-            <div className="credentials-container">
-              <div className="credentials-card">
-                <div className="credential-item">
-                  <div className="credential-label">
-                    <span className="credential-icon">📧</span>
-                    <span>Your Email</span>
-                  </div>
-                  <div className="credential-value">
-                    <code className="credential-text">{successData.email}</code>
-                    <button 
-                      className="copy-button"
-                      onClick={handleCopyEmail}
-                      title="Copy email"
-                    >
-                      📋
-                    </button>
-                  </div>
+            <div className="password-modal-content">
+              <div className="user-info">
+                <div className="user-info-item">
+                  <span className="info-label">Email:</span>
+                  <span className="info-value">{passwordSetupData.email}</span>
                 </div>
-
-                <div className="credential-item">
-                  <div className="credential-label">
-                    <span className="credential-icon">🔑</span>
-                    <span>Your Password</span>
-                  </div>
-                  <div className="credential-value">
-                    <code className="credential-text password-text">{successData.password}</code>
-                    <button 
-                      className="copy-button"
-                      onClick={handleCopyPassword}
-                      title="Copy password"
-                    >
-                      📋
-                    </button>
-                  </div>
-                </div>
-
-                <div className="credential-item">
-                  <div className="credential-label">
-                    <span className="credential-icon">👤</span>
-                    <span>Display Name</span>
-                  </div>
-                  <div className="credential-value">
-                    <code className="credential-text">{successData.name}</code>
-                  </div>
+                <div className="user-info-item">
+                  <span className="info-label">Name:</span>
+                  <span className="info-value">{passwordSetupData.name}</span>
                 </div>
               </div>
 
-              {/* Instructions */}
-              <div className="instructions-box">
-                <h4 className="instructions-title">📝 Important Instructions:</h4>
-                <ul className="instructions-list">
-                  <li>1. Go to Login page</li>
-                  <li>2. Enter your email and password above</li>
-                  <li>3. After login, go to profile</li>
-                  <li>4. Change your password for security</li>
-                </ul>
+              <div className="password-form">
+                <div className="form-group">
+                  <label htmlFor="password">New Password</label>
+                  <input
+                    type="password"
+                    id="password"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (passwordError) setPasswordError('');
+                    }}
+                    placeholder="Enter at least 6 characters"
+                    className="password-input"
+                    required
+                    autoFocus
+                  />
+                  <div className="password-hint">
+                    Must be at least 6 characters long
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="confirmPassword">Confirm Password</label>
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      if (passwordError) setPasswordError('');
+                    }}
+                    placeholder="Re-enter your password"
+                    className="password-input"
+                    required
+                  />
+                </div>
+
+                {passwordError && (
+                  <div className="password-error">
+                    ⚠️ {passwordError}
+                  </div>
+                )}
+
+                <div className="password-requirements">
+                  <h4>Password Requirements:</h4>
+                  <ul>
+                    <li className={password.length >= 6 ? 'met' : ''}>
+                      ✓ At least 6 characters
+                    </li>
+                    <li className={password === confirmPassword && password.length >= 6 ? 'met' : ''}>
+                      ✓ Passwords match
+                    </li>
+                  </ul>
+                </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="success-actions">
+              <div className="password-modal-actions">
                 <button
-                  className="login-button"
-                  onClick={handleGoToLogin}
+                  className="setup-button primary"
+                  onClick={handlePasswordSetup}
                 >
-                  Go to Login Page
+                  Set Password & Continue
                 </button>
                 <button
-                  className="back-button"
-                  onClick={() => setSuccessData(null)}
+                  className="setup-button secondary"
+                  onClick={handlePasswordSetupLater}
                 >
-                  Back to Signup
+                  Skip for Now
                 </button>
               </div>
 
-              {/* Security Note */}
               <div className="security-note">
-                <p>🔒 <strong>Security Tip:</strong> Never share your password with anyone.</p>
-                <p>Change your password immediately after first login.</p>
+                <p>⚠️ <strong>Security Note:</strong> Setting a password is required for security.</p>
+                <p>You can skip now, but you must set it later in your profile.</p>
               </div>
             </div>
           </div>
-        ) : (
-          <>
-            {/* Normal Registration Form - This shows when successData is null */}
-            {/* Logo and header */}
-            <div className="register-header">
-              <div className="register-logo">
-                ꍡ
-              </div>
-              <h2 className="register-title">Join VachoLink</h2>
-              <p className="register-subtitle">Sign up with Google to get started</p>
-            </div>
+        </div>
+      )}
 
-            {/* Information Box */}
-            <div className="register-info">
-              <p className="register-info-text">
-                <strong>ꍡ How it works:</strong><br/>
-                1. Sign up with Google<br/>
-                2. We'll create your account with a default password<br/>
-                3. Login with your email and password<br/>
-                4. Change your password in profile for security
-              </p>
-            </div>
+      <div className="register-form-container">
+        <div className="register-form-glow" />
+        
+        {/* Normal Registration Form */}
+        {/* Logo and header */}
+        <div className="register-header">
+          <div className="register-logo">
+            ꍡ
+          </div>
+          <h2 className="register-title">Join VachoLink</h2>
+          <p className="register-subtitle">Sign up with Google to get started</p>
+        </div>
 
-            {/* Google Signup Button */}
-            <div className="google-signup-container">
-              {loading ? (
-                <div className="loading-spinner">
-                  <div className="spinner"></div>
-                </div>
-              ) : (
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  theme="filled_blue"
-                  size="large"
-                  width="100%"
-                  text="signup_with"
-                  shape="rectangular"
-                />
-              )}
-            </div>
+        {/* Information Box */}
+        <div className="register-info">
+          <p className="register-info-text">
+            <strong>ꍡ How it works:</strong><br/>
+            1. Sign up with Google<br/>
+            2. Set your password immediately<br/>
+            3. Start using VachoLink<br/>
+          </p>
+        </div>
 
-            {/* Quick Login Info */}
-            <div className="quick-login-info">
-              <h4>📝 Your default password will be:</h4>
-              <p className="password-example">
-                <code>Gmailusername@vacholink</code>
-              </p>
-              <p className="password-note">
-                Example: If your email is "sumukesh123@gmail.com", password is "sumukesh123@vacholink"
-              </p>
-            </div>
-
-            {/* Footer */}
-            <div className="register-footer">
-              <p>Already have an account?</p>
-              <Link to="/login" className="register-link">
-                Sign in instead
-              </Link>
+        {/* Google Signup Button */}
+        <div className="google-signup-container">
+          {loading ? (
+            <div className="loading-spinner">
+              <div className="spinner"></div>
               
-              {/* Social links */}
-              <div className="form-social-links">
-                <div className="social-divider">
-                  <span>Connect with Developer</span>
-                </div>
-                <div className="social-links-container">
-                  <a 
-                    href="https://github.com/Sumukesh-Reddy" 
-                    className="form-social-link"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="GitHub"
-                  >
-                    <span className="social-icon">{'</>'}</span>
-                    <span className="social-label">GitHub</span>
-                  </a>
-                  <a 
-                    href="mailto:sumukeshmopuram1@gmail.com" 
-                    className="form-social-link"
-                    title="Email"
-                  >
-                    <span className="social-icon">@</span>
-                    <span className="social-label">Email</span>
-                  </a>
-                  <a 
-                    href="https://www.linkedin.com/in/sumukesh-reddy-mopuram/" 
-                    className="form-social-link"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="LinkedIn"
-                  >
-                    <span className="social-icon">in</span>
-                    <span className="social-label">LinkedIn</span>
-                  </a>
-                  <a 
-                    href="http://sumukesh-portfolio.vercel.app" 
-                    className="form-social-link"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Portfolio"
-                  >
-                    <span className="social-icon">⎙</span>
-                    <span className="social-label">Portfolio</span>
-                  </a>
-                </div>
-                <p className="social-note">Have questions or feedback? Reach out!</p>
-              </div>
             </div>
-          </>
-        )}
-      </div>
+          ) : (
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              theme="filled_blue"
+              size="large"
+              text="signup_with"
+              shape="rectangular"
+            />
+          )}
+        </div>
 
+        {/* Important Note */}
+        <div className="important-note">
+          <h4>🔐 Important:</h4>
+          <p>After Google signup, you'll be prompted to set a password for your account.</p>
+          <p><small>This ensures your account security.</small></p>
+        </div>
+
+        {/* Footer */}
+        <div className="register-footer">
+          <p>Already have an account?</p>
+          <Link to="/login" className="register-link">
+            Sign in instead
+          </Link>
+          
+          {/* Social links */}
+          <div className="form-social-links">
+            <div className="social-divider">
+              <span>Connect with Developer</span>
+            </div>
+            <div className="social-links-container">
+              <a 
+                href="https://github.com/Sumukesh-Reddy" 
+                className="form-social-link"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="GitHub"
+              >
+                <span className="social-icon">{'</>'}</span>
+                <span className="social-label">GitHub</span>
+              </a>
+              <a 
+                href="mailto:sumukeshmopuram1@gmail.com" 
+                className="form-social-link"
+                title="Email"
+              >
+                <span className="social-icon">@</span>
+                <span className="social-label">Email</span>
+              </a>
+              <a 
+                href="https://www.linkedin.com/in/sumukesh-reddy-mopuram/" 
+                className="form-social-link"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="LinkedIn"
+              >
+                <span className="social-icon">in</span>
+                <span className="social-label">LinkedIn</span>
+              </a>
+              <a 
+                href="http://sumukesh-portfolio.vercel.app" 
+                className="form-social-link"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Portfolio"
+              >
+                <span className="social-icon">⎙</span>
+                <span className="social-label">Portfolio</span>
+              </a>
+            </div>
+            <p className="social-note">Have questions or feedback? Reach out!</p>
+          </div>
+        </div>
+      </div>
       <style>{`
         /* Base styles */
         .register-container {
@@ -407,6 +482,255 @@ const Register = () => {
           filter: blur(40px);
           animation: glowPulse 8s ease-in-out infinite alternate;
           pointer-events: none;
+        }
+
+        /* Password Setup Modal */
+        .password-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.85);
+          backdrop-filter: blur(8px);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+          padding: 20px;
+          animation: fadeIn 0.3s ease-out;
+        }
+
+        .password-modal {
+          background: rgba(47, 49, 54, 0.95);
+          backdrop-filter: blur(10px);
+          border-radius: 16px;
+          padding: 40px;
+          width: 100%;
+          max-width: 500px;
+          box-shadow: 0 25px 80px rgba(0, 0, 0, 0.7);
+          border: 1px solid rgba(114, 137, 218, 0.3);
+          animation: slideUp 0.4s ease-out;
+        }
+
+        .password-modal-header {
+          text-align: center;
+          margin-bottom: 30px;
+        }
+
+        .password-modal-icon {
+          font-size: 48px;
+          margin-bottom: 16px;
+          animation: bounceIn 0.8s ease-out;
+        }
+
+        .password-modal-title {
+          color: #7289da;
+          font-size: 24px;
+          font-weight: 700;
+          margin-bottom: 8px;
+          text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .password-modal-subtitle {
+          color: #b9bbbe;
+          font-size: 14px;
+          line-height: 1.5;
+        }
+
+        .password-modal-content {
+          margin: 20px 0;
+        }
+
+        .user-info {
+          background: rgba(32, 34, 37, 0.7);
+          border-radius: 10px;
+          padding: 15px;
+          margin-bottom: 25px;
+          border: 1px solid rgba(67, 181, 129, 0.2);
+        }
+
+        .user-info-item {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 10px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .user-info-item:last-child {
+          margin-bottom: 0;
+          padding-bottom: 0;
+          border-bottom: none;
+        }
+
+        .info-label {
+          color: #8e9297;
+          font-weight: 500;
+          font-size: 14px;
+        }
+
+        .info-value {
+          color: #ffffff;
+          font-family: 'Courier New', monospace;
+          font-size: 14px;
+          font-weight: 500;
+        }
+
+        .password-form {
+          margin-bottom: 25px;
+        }
+
+        .form-group {
+          margin-bottom: 20px;
+        }
+
+        .form-group label {
+          display: block;
+          margin-bottom: 8px;
+          color: #8e9297;
+          font-size: 14px;
+          font-weight: 500;
+        }
+
+        .password-input {
+          width: 100%;
+          padding: 14px;
+          background: rgba(32, 34, 37, 0.8);
+          border: 1px solid rgba(32, 34, 37, 0.5);
+          border-radius: 8px;
+          color: #dcddde;
+          font-size: 15px;
+          transition: all 0.3s;
+          outline: none;
+          box-sizing: border-box;
+        }
+
+        .password-input:focus {
+          border-color: #7289da;
+          box-shadow: 0 0 0 2px rgba(114, 137, 218, 0.2);
+          background: rgba(32, 34, 37, 0.9);
+        }
+
+        .password-hint {
+          color: #8e9297;
+          font-size: 12px;
+          margin-top: 4px;
+          margin-left: 4px;
+        }
+
+        .password-error {
+          background: rgba(237, 66, 69, 0.1);
+          border: 1px solid rgba(237, 66, 69, 0.3);
+          border-radius: 6px;
+          padding: 12px;
+          color: #ed4245;
+          font-size: 14px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .password-requirements {
+          background: rgba(32, 34, 37, 0.5);
+          border-radius: 8px;
+          padding: 15px;
+          margin-top: 25px;
+        }
+
+        .password-requirements h4 {
+          color: #43b581;
+          font-size: 14px;
+          margin-bottom: 10px;
+        }
+
+        .password-requirements ul {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+        }
+
+        .password-requirements li {
+          color: #8e9297;
+          font-size: 13px;
+          margin-bottom: 6px;
+          padding-left: 20px;
+          position: relative;
+        }
+
+        .password-requirements li:before {
+          content: '○';
+          position: absolute;
+          left: 0;
+          color: #8e9297;
+        }
+
+        .password-requirements li.met {
+          color: #43b581;
+        }
+
+        .password-requirements li.met:before {
+          content: '✓';
+          color: #43b581;
+        }
+
+        .password-modal-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin: 30px 0;
+        }
+
+        .setup-button {
+          padding: 16px;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s;
+          border: none;
+          text-align: center;
+        }
+
+        .setup-button.primary {
+          background: linear-gradient(135deg, #7289da 0%, #5b6eae 100%);
+          color: white;
+        }
+
+        .setup-button.primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(114, 137, 218, 0.4);
+        }
+
+        .setup-button.secondary {
+          background: transparent;
+          border: 2px solid rgba(114, 137, 218, 0.4);
+          color: #7289da;
+        }
+
+        .setup-button.secondary:hover {
+          background: rgba(114, 137, 218, 0.1);
+          transform: translateY(-2px);
+        }
+
+        .security-note {
+          background: rgba(237, 66, 69, 0.1);
+          border: 1px solid rgba(237, 66, 69, 0.3);
+          border-radius: 8px;
+          padding: 15px;
+          text-align: center;
+        }
+
+        .security-note p {
+          color: #ed4245;
+          font-size: 13px;
+          margin: 5px 0;
+          line-height: 1.4;
+        }
+
+        .security-note strong {
+          color: #ffffff;
         }
 
         /* Form container */
@@ -521,41 +845,31 @@ const Register = () => {
           font-size: 14px;
         }
 
-        /* Quick Login Info */
-        .quick-login-info {
-          background: rgba(67, 181, 129, 0.1);
-          border: 1px solid rgba(67, 181, 129, 0.3);
+        /* Important Note */
+        .important-note {
+          background: rgba(114, 137, 218, 0.1);
+          border: 1px solid rgba(114, 137, 218, 0.3);
           border-radius: 8px;
           padding: 15px;
           margin: 20px 0;
           text-align: center;
         }
 
-        .quick-login-info h4 {
-          color: #43b581;
+        .important-note h4 {
+          color: #7289da;
           margin: 0 0 10px 0;
           font-size: 14px;
         }
 
-        .password-example {
-          margin: 10px 0;
+        .important-note p {
+          color: #b9bbbe;
+          margin: 5px 0;
+          font-size: 13px;
         }
 
-        .password-example code {
-          background: rgba(0, 0, 0, 0.3);
-          color: #ffffff;
-          padding: 8px 12px;
-          border-radius: 4px;
-          font-family: 'Courier New', monospace;
-          font-size: 14px;
-          font-weight: bold;
-          display: inline-block;
-        }
-
-        .password-note {
+        .important-note small {
           color: #8e9297;
           font-size: 12px;
-          margin: 5px 0 0 0;
         }
 
         /* Footer */
@@ -682,221 +996,6 @@ const Register = () => {
           opacity: 0.8;
         }
 
-        /* Success Message Styles */
-        .success-container {
-          animation: fadeIn 0.5s ease-out;
-        }
-
-        .success-header {
-          text-align: center;
-          margin-bottom: 30px;
-        }
-
-        .success-icon {
-          font-size: 48px;
-          margin-bottom: 16px;
-          animation: successBounce 1s ease-out;
-        }
-
-        .success-title {
-          color: #43b581;
-          font-size: 24px;
-          font-weight: 700;
-          margin-bottom: 10px;
-          text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .success-subtitle {
-          color: #b9bbbe;
-          font-size: 14px;
-          line-height: 1.5;
-        }
-
-        .credentials-container {
-          margin: 20px 0;
-        }
-
-        .credentials-card {
-          background: rgba(32, 34, 37, 0.7);
-          border-radius: 12px;
-          padding: 20px;
-          border: 2px solid #43b581;
-          box-shadow: 0 8px 32px rgba(67, 181, 129, 0.2);
-          margin-bottom: 25px;
-        }
-
-        .credential-item {
-          margin-bottom: 20px;
-          padding-bottom: 20px;
-          border-bottom: 1px solid rgba(67, 181, 129, 0.2);
-        }
-
-        .credential-item:last-child {
-          margin-bottom: 0;
-          padding-bottom: 0;
-          border-bottom: none;
-        }
-
-        .credential-label {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-bottom: 10px;
-          color: #ffffff;
-          font-weight: 600;
-          font-size: 14px;
-        }
-
-        .credential-icon {
-          font-size: 18px;
-          animation: iconFloat 2s ease-in-out infinite;
-        }
-
-        .credential-value {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-        }
-
-        .credential-text {
-          background: rgba(0, 0, 0, 0.4);
-          color: #ffffff;
-          padding: 12px 16px;
-          border-radius: 8px;
-          font-family: 'Courier New', monospace;
-          font-size: 14px;
-          flex: 1;
-          word-break: break-all;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .password-text {
-          color: #43b581;
-          font-weight: bold;
-          letter-spacing: 1px;
-        }
-
-        .copy-button {
-          background: rgba(114, 137, 218, 0.2);
-          border: 1px solid rgba(114, 137, 218, 0.4);
-          color: #7289da;
-          width: 44px;
-          height: 44px;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          font-size: 18px;
-          transition: all 0.3s;
-          flex-shrink: 0;
-        }
-
-        .copy-button:hover {
-          background: rgba(114, 137, 218, 0.4);
-          transform: scale(1.1);
-          box-shadow: 0 4px 12px rgba(114, 137, 218, 0.3);
-        }
-
-        .instructions-box {
-          background: rgba(32, 34, 37, 0.5);
-          border-radius: 10px;
-          padding: 20px;
-          margin-bottom: 25px;
-          border-left: 4px solid #7289da;
-        }
-
-        .instructions-title {
-          color: #ffffff;
-          font-size: 16px;
-          margin-bottom: 12px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .instructions-list {
-          color: #b9bbbe;
-          font-size: 14px;
-          line-height: 1.6;
-          margin: 0;
-          padding-left: 20px;
-        }
-
-        .instructions-list li {
-          margin-bottom: 8px;
-        }
-
-        .instructions-list li:last-child {
-          margin-bottom: 0;
-        }
-
-        .success-actions {
-          display: flex;
-          gap: 12px;
-          margin-bottom: 25px;
-        }
-
-        .login-button {
-          flex: 1;
-          background: linear-gradient(135deg, #43b581 0%, #3ba55d 100%);
-          color: white;
-          border: none;
-          padding: 16px;
-          border-radius: 8px;
-          font-size: 15px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-        }
-
-        .login-button:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(67, 181, 129, 0.4);
-        }
-
-        .back-button {
-          flex: 1;
-          background: transparent;
-          border: 2px solid rgba(114, 137, 218, 0.4);
-          color: #7289da;
-          padding: 16px;
-          border-radius: 8px;
-          font-size: 15px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s;
-        }
-
-        .back-button:hover {
-          background: rgba(114, 137, 218, 0.1);
-          transform: translateY(-2px);
-        }
-
-        .security-note {
-          background: rgba(237, 66, 69, 0.1);
-          border: 1px solid rgba(237, 66, 69, 0.3);
-          border-radius: 8px;
-          padding: 15px;
-          text-align: center;
-        }
-
-        .security-note p {
-          color: #ed4245;
-          font-size: 13px;
-          margin: 5px 0;
-          line-height: 1.4;
-        }
-
-        .security-note strong {
-          color: #ffffff;
-        }
-
         /* Animations */
         @keyframes starTwinkle {
           0%, 100% { 
@@ -923,37 +1022,40 @@ const Register = () => {
           100% { transform: rotate(360deg); }
         }
 
-        @keyframes successBounce {
-          0% {
-            transform: scale(0.5);
+        @keyframes fadeIn {
+          from {
             opacity: 0;
           }
-          70% {
-            transform: scale(1.1);
-          }
-          100% {
-            transform: scale(1);
+          to {
             opacity: 1;
           }
         }
 
-        @keyframes iconFloat {
-          0%, 100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-3px);
-          }
-        }
-
-        @keyframes fadeIn {
+        @keyframes slideUp {
           from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(30px);
           }
           to {
             opacity: 1;
             transform: translateY(0);
+          }
+        }
+
+        @keyframes bounceIn {
+          0% {
+            transform: scale(0.3);
+            opacity: 0;
+          }
+          50% {
+            transform: scale(1.05);
+          }
+          70% {
+            transform: scale(0.9);
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
           }
         }
 
@@ -976,6 +1078,34 @@ const Register = () => {
             width: 250px;
             height: 250px;
             filter: blur(25px);
+          }
+
+          .password-modal {
+            padding: 30px 25px;
+            max-width: 100%;
+            margin: 0 15px;
+            border-radius: 12px;
+          }
+
+          .password-modal-title {
+            font-size: 20px;
+          }
+
+          .password-modal-subtitle {
+            font-size: 13px;
+          }
+
+          .password-modal-icon {
+            font-size: 40px;
+          }
+
+          .user-info-item {
+            flex-direction: column;
+            gap: 4px;
+          }
+
+          .info-label, .info-value {
+            font-size: 13px;
           }
 
           .register-logo {
@@ -1001,17 +1131,12 @@ const Register = () => {
             font-size: 13px;
           }
 
-          .quick-login-info {
-            padding: 12px;
-          }
-
-          .password-example code {
+          .important-note h4 {
             font-size: 13px;
-            padding: 6px 10px;
           }
 
-          .password-note {
-            font-size: 11px;
+          .important-note p {
+            font-size: 12px;
           }
 
           .social-links-container {
@@ -1042,30 +1167,6 @@ const Register = () => {
           .social-note {
             font-size: 10px;
           }
-
-          /* Responsive styles for success container */
-          .credentials-card {
-            padding: 15px;
-          }
-          
-          .credential-text {
-            font-size: 13px;
-            padding: 10px 12px;
-          }
-          
-          .copy-button {
-            width: 40px;
-            height: 40px;
-            font-size: 16px;
-          }
-          
-          .success-actions {
-            flex-direction: column;
-          }
-          
-          .instructions-box {
-            padding: 15px;
-          }
         }
 
         /* Small mobile */
@@ -1073,6 +1174,25 @@ const Register = () => {
           .register-form-container {
             padding: 25px 20px;
             margin: 0 10px;
+          }
+
+          .password-modal {
+            padding: 25px 20px;
+            margin: 0 10px;
+          }
+
+          .password-modal-title {
+            font-size: 18px;
+          }
+
+          .password-input {
+            padding: 12px;
+            font-size: 14px;
+          }
+
+          .setup-button {
+            padding: 14px;
+            font-size: 14px;
           }
 
           .register-logo {

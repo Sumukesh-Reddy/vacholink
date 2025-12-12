@@ -156,12 +156,13 @@ const userSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false },
   isGoogleUser: { type: Boolean, default: false },
   needsPasswordChange: { type: Boolean, default: false },
+  needsProfileCompletion: { type: Boolean, default: false }, // ADD THIS LINE
   resetToken: String,
   resetTokenExpires: Date,
-  needsProfileCompletion: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
+
 
 userSchema.pre('save', function() {
   this.updatedAt = Date.now();
@@ -245,8 +246,7 @@ const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString()
 
 // ========== GOOGLE AUTH ROUTES ==========
 
-// Google Authentication
-// In server.js, update the Google auth route:
+
 app.post('/api/auth/google', async (req, res) => {
   try {
     const { credential } = req.body;
@@ -260,10 +260,8 @@ app.post('/api/auth/google', async (req, res) => {
       });
     }
 
-    // Log Google Client ID (first few chars for security)
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    console.log('Google Client ID being used:', clientId ? `${clientId.substring(0, 10)}...` : 'NOT SET');
-
+    
     if (!clientId) {
       console.error('❌ GOOGLE_CLIENT_ID environment variable is not set!');
       return res.status(500).json({ 
@@ -290,35 +288,37 @@ app.post('/api/auth/google', async (req, res) => {
 
     let isNewUser = false;
 
-   
     if (!user) {
-      
+      // New Google user - create account
       const displayName = name || email.split('@')[0];
       let uniqueName = displayName;
       let counter = 1;
 
+      // Ensure unique name
       while (await User.findOne({ name: uniqueName })) {
         uniqueName = `${displayName}${counter}`;
         counter++;
       }
-      const emailUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
-      const defaultPassword = `${emailUsername}@vacholink`;
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(defaultPassword, salt);
-      user = await User.create({
+
+      // Create user WITHOUT password for Google users
+      user = new User({
         googleId,
         email,
         name: uniqueName,
-        password: hashedPassword,
+        password: undefined, // No password initially
         profilePhoto: picture || '',
         isVerified: true,
-        isGoogleUser: true, 
-        needsPasswordChange: true 
+        isGoogleUser: true,
+        needsPasswordChange: true, // User needs to set a password
+        needsProfileCompletion: true, // User needs to complete profile
+        accountType: 'user'
       });
+
+      await user.save();
       isNewUser = true;
-      console.log('👤 New Google user created:', email, 'with default password');
+      console.log('👤 New Google user created:', email, 'needs profile completion');
     } else {
-     
+      // Existing user - update online status
       user.online = true;
       user.lastSeen = new Date();
       
@@ -336,44 +336,31 @@ app.post('/api/auth/google', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    const userResponse = user.toObject();
-    delete userResponse.password;
+    // Get user without password
+    const userResponse = await User.findById(user._id).select('-password');
 
-    console.log(`🎉 Google login successful for: ${email} (${isNewUser ? 'new' : 'existing'})`);
+    console.log(`🎉 Google auth successful for: ${email} (${isNewUser ? 'new' : 'existing'})`);
+    console.log('User needsProfileCompletion:', userResponse.needsProfileCompletion);
 
     res.json({
       success: true,
       message: isNewUser ? 'Google signup successful' : 'Google login successful',
       token,
-      user: userResponse,
-      needsProfileCompletion: user.needsProfileCompletion || false
+      user: userResponse.toObject(),
+      isNewUser: isNewUser, 
+      needsProfileCompletion: userResponse.needsProfileCompletion || false
     });
   } catch (error) {
-    console.error('❌ Google auth error details:', {
-      message: error.message,
-      stack: error.stack,
-      clientId: process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Not set'
-    });
-    
-    // More specific error messages
-    let errorMessage = 'Google authentication failed';
-    if (error.message.includes('Invalid token signature')) {
-      errorMessage = 'Invalid Google token. Please try again.';
-    } else if (error.message.includes('Token used too late')) {
-      errorMessage = 'Google token expired. Please try again.';
-    } else if (error.message.includes('audience')) {
-      errorMessage = 'Google Client ID mismatch. Please check server configuration.';
-    }
-    
-    res.status(401).json({ 
+    console.error('❌ Google auth error:', error);
+    res.status(500).json({ 
       success: false, 
-      message: errorMessage,
+      message: 'Google authentication failed',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
-
 // Complete Profile for New Google Users
+
 app.post('/api/auth/complete-profile', authenticateToken, async (req, res) => {
   try {
     const { name, password } = req.body;
@@ -392,7 +379,6 @@ app.post('/api/auth/complete-profile', authenticateToken, async (req, res) => {
     
     // Update name if provided
     if (name && name.trim()) {
-      // Check if name is already taken by another user
       const existingName = await User.findOne({ 
         name: name.trim(),
         _id: { $ne: user._id }
@@ -407,7 +393,7 @@ app.post('/api/auth/complete-profile', authenticateToken, async (req, res) => {
       updates.name = name.trim();
     }
 
-    // Update password if provided
+    // Update password if provided (REQUIRED for Google users)
     if (password && password.trim()) {
       if (password.length < 6) {
         return res.status(400).json({ 
@@ -418,6 +404,13 @@ app.post('/api/auth/complete-profile', authenticateToken, async (req, res) => {
       
       const salt = await bcrypt.genSalt(10);
       updates.password = await bcrypt.hash(password, salt);
+      updates.needsPasswordChange = false;
+    } else if (user.isGoogleUser && !user.password) {
+      // If Google user and no password provided
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password is required for Google users' 
+      });
     }
 
     // Mark profile as completed
@@ -445,7 +438,6 @@ app.post('/api/auth/complete-profile', authenticateToken, async (req, res) => {
     });
   }
 });
-
 // ========== EXISTING AUTH ROUTES ==========
 
 // Send OTP for Signup - DISABLED
@@ -676,14 +668,15 @@ app.post('/api/auth/profile/photo', authenticateToken, upload.single('profilePho
 });
 
 // Change Password
+// Change Password
 app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
+    if (!newPassword) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Current and new password are required' 
+        message: 'New password is required' 
       });
     }
 
@@ -696,6 +689,28 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
 
     const user = await User.findById(req.user._id).select('+password');
     
+    // If user is a Google user AND has no password yet
+    if (user.isGoogleUser && !user.password) {
+      // Allow setting first password without current password check
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(newPassword, salt);
+      user.needsPasswordChange = false;
+      await user.save();
+      
+      return res.json({
+        success: true,
+        message: 'Password set successfully'
+      });
+    }
+    
+    // Regular users must provide current password
+    if (!currentPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Current password is required' 
+      });
+    }
+
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ 
@@ -705,9 +720,8 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
     }
 
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-    user.password = hashedPassword;
+    user.password = await bcrypt.hash(newPassword, salt);
+    user.needsPasswordChange = false;
     await user.save();
 
     res.json({

@@ -37,21 +37,33 @@ const Login = () => {
     return () => window.removeEventListener('resize', generateStars);
   }, []);
 
+  
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  e.preventDefault();
+  setLoading(true);
 
-    const result = await login(email, password);
+  const result = await login(email, password);
+  
+  if (result.success) {
+    toast.success('Login successful!');
     
-    if (result.success) {
-      toast.success('Login successful!');
-      navigate('/');
-    } else {
-      toast.error(result.message);
+    // Check if user needs to set password
+    if (result.user?.needsPasswordChange) {
+      toast.info(
+        <div>
+          Please go to your profile to set a password for security.
+        </div>,
+        { autoClose: 6000 }
+      );
     }
     
-    setLoading(false);
-  };
+    navigate('/');
+  } else {
+    toast.error(result.message);
+  }
+  
+  setLoading(false);
+};
 
   return (
     <div className="login-container">
