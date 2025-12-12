@@ -109,6 +109,7 @@ const Register = () => {
 
   const handleGoToLogin = () => {
     setSuccessData(null);
+    navigate('/login'); // FIXED: Added navigate call
   };
 
   return (
@@ -220,7 +221,7 @@ const Register = () => {
               <div className="success-actions">
                 <button
                   className="login-button"
-                  onClick={handleGoToLogin}
+                  onClick={handleGoToLogin} // This will now work
                 >
                   Go to Login Page
                 </button>
@@ -267,6 +268,7 @@ const Register = () => {
               {loading ? (
                 <div className="loading-spinner">
                   <div className="spinner"></div>
+                  <span>Creating your account...</span>
                 </div>
               ) : (
                 <GoogleLogin
