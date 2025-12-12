@@ -81,82 +81,14 @@ const Register = () => {
           // Existing user - login directly
           toast.success('Please SignIn!');
           toast.success(
-            <div className="register-toast-wrapper">
-              <div className="register-glow" />
-          
-              <div className="register-form-container">
-                <div className="register-form-glow" />
-          
-                {successData && (
-                  <div className="success-container">
-          
-                    {/* Header */}
-                    <div className="success-header">
-                      <div className="success-icon">✅</div>
-                      <h2 className="success-title">Account Created Successfully!</h2>
-                      <p className="success-subtitle">
-                        Here are your login credentials. Please save them securely.
-                      </p>
-                    </div>
-          
-                    {/* Credentials Box */}
-                    <div className="credentials-container">
-                      <div className="credentials-card">
-          
-                        <div className="credential-item">
-                          <div className="credential-label">
-                            <span className="credential-icon">📧</span>
-                            <span>Your Email</span>
-                          </div>
-                          <div className="credential-value">
-                            <code className="credential-text">{successData.email}</code>
-                            <button 
-                              className="copy-button"
-                              onClick={handleCopyEmail}
-                              title="Copy email"
-                            >
-                              📋
-                            </button>
-                          </div>
-                        </div>
-          
-                        <div className="credential-item">
-                          <div className="credential-label">
-                            <span className="credential-icon">🔑</span>
-                            <span>Your Password</span>
-                          </div>
-                          <div className="credential-value">
-                            <code className="credential-text password-text">
-                              {successData.password}
-                            </code>
-                            <button 
-                              className="copy-button"
-                              onClick={handleCopyPassword}
-                              title="Copy password"
-                            >
-                              📋
-                            </button>
-                          </div>
-                        </div>
-          
-                        <div className="credential-item">
-                          <div className="credential-label">
-                            <span className="credential-icon">👤</span>
-                            <span>Display Name</span>
-                          </div>
-                          <div className="credential-value">
-                            <code className="credential-text">{successData.name}</code>
-                          </div>
-                        </div>
-          
-                      </div>
-                    </div>
-          
-                  </div>
-                )}
-              </div>
-            </div>
-          );          
+            <div style={{ padding: '5px' }}>
+              <p style={{ margin: 0 }}>{successData.password}</p>
+            </div>,
+            {
+              autoClose: 3000,
+              position: "top-center"
+            }
+          );       
           // localStorage.setItem('token', response.data.token);
           // localStorage.setItem('user', JSON.stringify(response.data.user));
           navigate('/'); 
