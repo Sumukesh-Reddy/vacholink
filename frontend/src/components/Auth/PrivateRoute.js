@@ -422,10 +422,6 @@ const PrivateRoute = ({ children }) => {
     return <Navigate to="/change-password" />;
   }
   
-  // If user is on change-password page but doesn't need it anymore, redirect to home
-  if (location.pathname === '/change-password' && !user.needsPasswordChange) {
-    return <Navigate to="/" />;
-  }
 
   return children;
 };
