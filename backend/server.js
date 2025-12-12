@@ -301,8 +301,8 @@ app.post('/api/auth/google', async (req, res) => {
         uniqueName = `${displayName}${counter}`;
         counter++;
       }
-
-      const defaultPassword = `${uniqueName}@vacholink`;
+      const emailUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+      const defaultPassword = `${emailUsername}@vacholink`;
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(defaultPassword, salt);
       user = await User.create({

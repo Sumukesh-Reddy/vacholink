@@ -9,6 +9,7 @@ const API_URL = process.env.REACT_APP_API_URL || "https://vacholink.onrender.com
 const Register = () => {
   const [loading, setLoading] = useState(false);
   const [stars, setStars] = useState([]);
+  const [successData, setSuccessData] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -49,30 +50,27 @@ const Register = () => {
         const { isNewUser, defaultPassword, user } = response.data;
         
         if (isNewUser) {
-          // Show detailed success message for new users
-          toast.success(
-            <div style={{ padding: '10px' }}>
-              <h4 style={{ margin: '0 0 10px 0', color: '#43b581' }}>🎉 Account Created Successfully!</h4>
-              <p><strong>Your login credentials:</strong></p>
-              <p>📧 <strong>Email:</strong> {user.email}</p>
-              <p>🔑 <strong>Password:</strong> {defaultPassword}</p>
-              <p style={{ fontSize: '12px', color: '#8e9297', marginTop: '10px' }}>
-                Please login with these credentials and change your password in settings.
-              </p>
-            </div>,
-            {
-              autoClose: 15000, // 15 seconds
-              closeButton: true,
-              position: "top-center"
-            }
-          );
+          // Store success data to show in box
+          setSuccessData({
+            email: user.email,
+            password: defaultPassword,
+            name: user.name
+          });
           
           // Clear any existing auth data
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           
-          // Redirect to login page
-          navigate('/login');
+          // Show success toast
+          toast.success(
+            <div style={{ padding: '5px' }}>
+              <p style={{ margin: 0 }}>✅ Account created! Check your credentials below.</p>
+            </div>,
+            {
+              autoClose: 3000,
+              position: "top-center"
+            }
+          );
         } else {
           // Existing user - login directly
           toast.success('Welcome back! Login successful');
@@ -93,6 +91,25 @@ const Register = () => {
 
   const handleGoogleError = () => {
     toast.error('Google signup failed. Please try again.');
+  };
+
+  const handleCopyPassword = () => {
+    if (successData?.password) {
+      navigator.clipboard.writeText(successData.password);
+      toast.success('Password copied to clipboard!');
+    }
+  };
+
+  const handleCopyEmail = () => {
+    if (successData?.email) {
+      navigator.clipboard.writeText(successData.email);
+      toast.success('Email copied to clipboard!');
+    }
+  };
+
+  const handleGoToLogin = () => {
+    setSuccessData(null);
+    navigate('/login');
   };
 
   return (
@@ -127,112 +144,213 @@ const Register = () => {
         {/* Form inner glow */}
         <div className="register-form-glow" />
         
-        {/* Logo and header */}
-        <div className="register-header">
-          <div className="register-logo">
-            ꍡ
+        {/* Success Message Box */}
+        {successData ? (
+          <div className="success-container">
+            {/* Header */}
+            <div className="success-header">
+              <div className="success-icon">
+                ✅
+              </div>
+              <h2 className="success-title">Account Created Successfully!</h2>
+              <p className="success-subtitle">
+                Here are your login credentials. Please save them securely.
+              </p>
+            </div>
+
+            {/* Credentials Box */}
+            <div className="credentials-container">
+              <div className="credentials-card">
+                <div className="credential-item">
+                  <div className="credential-label">
+                    <span className="credential-icon">📧</span>
+                    <span>Your Email</span>
+                  </div>
+                  <div className="credential-value">
+                    <code className="credential-text">{successData.email}</code>
+                    <button 
+                      className="copy-button"
+                      onClick={handleCopyEmail}
+                      title="Copy email"
+                    >
+                      📋
+                    </button>
+                  </div>
+                </div>
+
+                <div className="credential-item">
+                  <div className="credential-label">
+                    <span className="credential-icon">🔑</span>
+                    <span>Your Password</span>
+                  </div>
+                  <div className="credential-value">
+                    <code className="credential-text password-text">{successData.password}</code>
+                    <button 
+                      className="copy-button"
+                      onClick={handleCopyPassword}
+                      title="Copy password"
+                    >
+                      📋
+                    </button>
+                  </div>
+                </div>
+
+                <div className="credential-item">
+                  <div className="credential-label">
+                    <span className="credential-icon">👤</span>
+                    <span>Display Name</span>
+                  </div>
+                  <div className="credential-value">
+                    <code className="credential-text">{successData.name}</code>
+                  </div>
+                </div>
+              </div>
+
+              {/* Instructions */}
+              <div className="instructions-box">
+                <h4 className="instructions-title">📝 Important Instructions:</h4>
+                <ul className="instructions-list">
+                  <li>1. Go to Login page</li>
+                  <li>2. Enter your email and password above</li>
+                  <li>3. After login, go to Settings</li>
+                  <li>4. Change your password for security</li>
+                </ul>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="success-actions">
+                <button
+                  className="login-button"
+                  onClick={handleGoToLogin}
+                >
+                  Go to Login Page
+                </button>
+                <button
+                  className="back-button"
+                  onClick={() => setSuccessData(null)}
+                >
+                  Back to Signup
+                </button>
+              </div>
+
+              {/* Security Note */}
+              <div className="security-note">
+                <p>🔒 <strong>Security Tip:</strong> Never share your password with anyone.</p>
+                <p>Change your password immediately after first login.</p>
+              </div>
+            </div>
           </div>
-          <h2 className="register-title">Join VachoLink</h2>
-          <p className="register-subtitle">Sign up with Google to get started</p>
-        </div>
-
-        {/* Information Box */}
-        <div className="register-info">
-          <p className="register-info-text">
-            <strong>🚀 How it works:</strong><br/>
-            1. Sign up with Google<br/>
-            2. We'll create your account with a default password<br/>
-            3. Login with your email and password<br/>
-            4. Change your password in settings for security
-          </p>
-        </div>
-
-        {/* Google Signup Button */}
-        <div className="google-signup-container">
-          {loading ? (
-            <div className="loading-spinner">
-              <div className="spinner"></div>
-              <span>Creating your account...</span>
+        ) : (
+          <>
+            {/* Normal Registration Form */}
+            {/* Logo and header */}
+            <div className="register-header">
+              <div className="register-logo">
+                ꍡ
+              </div>
+              <h2 className="register-title">Join VachoLink</h2>
+              <p className="register-subtitle">Sign up with Google to get started</p>
             </div>
-          ) : (
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
-              theme="filled_blue"
-              size="large"
-              width="100%"
-              text="signup_with"
-              shape="rectangular"
-            />
-          )}
-        </div>
 
-        {/* Quick Login Info */}
-        <div className="quick-login-info">
-          <h4>📝 Your default password will be:</h4>
-          <p className="password-example">
-            <code>yourname@vacholink</code>
-          </p>
-          <p className="password-note">
-            Example: If your name is "Sumukesh Reddy", password is "SumukeshReddy@vacholink"
-          </p>
-        </div>
+            {/* Information Box */}
+            <div className="register-info">
+              <p className="register-info-text">
+                <strong>🚀 How it works:</strong><br/>
+                1. Sign up with Google<br/>
+                2. We'll create your account with a default password<br/>
+                3. Login with your email and password<br/>
+                4. Change your password in settings for security
+              </p>
+            </div>
 
-        {/* Footer */}
-        <div className="register-footer">
-          <p>Already have an account?</p>
-          <Link to="/login" className="register-link">
-            Sign in instead
-          </Link>
-          
-          {/* Social links */}
-          <div className="form-social-links">
-            <div className="social-divider">
-              <span>Connect with Developer</span>
+            {/* Google Signup Button */}
+            <div className="google-signup-container">
+              {loading ? (
+                <div className="loading-spinner">
+                  <div className="spinner"></div>
+                  <span>Creating your account...</span>
+                </div>
+              ) : (
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  theme="filled_blue"
+                  size="large"
+                  width="100%"
+                  text="signup_with"
+                  shape="rectangular"
+                />
+              )}
             </div>
-            <div className="social-links-container">
-              <a 
-                href="https://github.com/Sumukesh-Reddy" 
-                className="form-social-link"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="GitHub"
-              >
-                <span className="social-icon">{'</>'}</span>
-                <span className="social-label">GitHub</span>
-              </a>
-              <a 
-                href="mailto:sumukeshmopuram1@gmail.com" 
-                className="form-social-link"
-                title="Email"
-              >
-                <span className="social-icon">@</span>
-                <span className="social-label">Email</span>
-              </a>
-              <a 
-                href="https://www.linkedin.com/in/sumukesh-reddy-mopuram/" 
-                className="form-social-link"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="LinkedIn"
-              >
-                <span className="social-icon">in</span>
-                <span className="social-label">LinkedIn</span>
-              </a>
-              <a 
-                href="http://sumukesh-portfolio.vercel.app" 
-                className="form-social-link"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Portfolio"
-              >
-                <span className="social-icon">⎙</span>
-                <span className="social-label">Portfolio</span>
-              </a>
+
+            {/* Quick Login Info */}
+            <div className="quick-login-info">
+              <h4>📝 Your default password will be:</h4>
+              <p className="password-example">
+                <code>emailusername@vacholink</code>
+              </p>
+              <p className="password-note">
+                Example: If your email is "john123@gmail.com", password is "john123@vacholink"
+              </p>
             </div>
-            <p className="social-note">Have questions or feedback? Reach out!</p>
-          </div>
-        </div>
+
+            {/* Footer */}
+            <div className="register-footer">
+              <p>Already have an account?</p>
+              <Link to="/login" className="register-link">
+                Sign in instead
+              </Link>
+              
+              {/* Social links */}
+              <div className="form-social-links">
+                <div className="social-divider">
+                  <span>Connect with Developer</span>
+                </div>
+                <div className="social-links-container">
+                  <a 
+                    href="https://github.com/Sumukesh-Reddy" 
+                    className="form-social-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="GitHub"
+                  >
+                    <span className="social-icon">{'</>'}</span>
+                    <span className="social-label">GitHub</span>
+                  </a>
+                  <a 
+                    href="mailto:sumukeshmopuram1@gmail.com" 
+                    className="form-social-link"
+                    title="Email"
+                  >
+                    <span className="social-icon">@</span>
+                    <span className="social-label">Email</span>
+                  </a>
+                  <a 
+                    href="https://www.linkedin.com/in/sumukesh-reddy-mopuram/" 
+                    className="form-social-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="LinkedIn"
+                  >
+                    <span className="social-icon">in</span>
+                    <span className="social-label">LinkedIn</span>
+                  </a>
+                  <a 
+                    href="http://sumukesh-portfolio.vercel.app" 
+                    className="form-social-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Portfolio"
+                  >
+                    <span className="social-icon">⎙</span>
+                    <span className="social-label">Portfolio</span>
+                  </a>
+                </div>
+                <p className="social-note">Have questions or feedback? Reach out!</p>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <style>{`
@@ -560,6 +678,221 @@ const Register = () => {
           opacity: 0.8;
         }
 
+        /* Success Message Styles */
+        .success-container {
+          animation: fadeIn 0.5s ease-out;
+        }
+
+        .success-header {
+          text-align: center;
+          margin-bottom: 30px;
+        }
+
+        .success-icon {
+          font-size: 48px;
+          margin-bottom: 16px;
+          animation: successBounce 1s ease-out;
+        }
+
+        .success-title {
+          color: #43b581;
+          font-size: 24px;
+          font-weight: 700;
+          margin-bottom: 10px;
+          text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .success-subtitle {
+          color: #b9bbbe;
+          font-size: 14px;
+          line-height: 1.5;
+        }
+
+        .credentials-container {
+          margin: 20px 0;
+        }
+
+        .credentials-card {
+          background: rgba(32, 34, 37, 0.7);
+          border-radius: 12px;
+          padding: 20px;
+          border: 2px solid #43b581;
+          box-shadow: 0 8px 32px rgba(67, 181, 129, 0.2);
+          margin-bottom: 25px;
+        }
+
+        .credential-item {
+          margin-bottom: 20px;
+          padding-bottom: 20px;
+          border-bottom: 1px solid rgba(67, 181, 129, 0.2);
+        }
+
+        .credential-item:last-child {
+          margin-bottom: 0;
+          padding-bottom: 0;
+          border-bottom: none;
+        }
+
+        .credential-label {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 10px;
+          color: #ffffff;
+          font-weight: 600;
+          font-size: 14px;
+        }
+
+        .credential-icon {
+          font-size: 18px;
+          animation: iconFloat 2s ease-in-out infinite;
+        }
+
+        .credential-value {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .credential-text {
+          background: rgba(0, 0, 0, 0.4);
+          color: #ffffff;
+          padding: 12px 16px;
+          border-radius: 8px;
+          font-family: 'Courier New', monospace;
+          font-size: 14px;
+          flex: 1;
+          word-break: break-all;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .password-text {
+          color: #43b581;
+          font-weight: bold;
+          letter-spacing: 1px;
+        }
+
+        .copy-button {
+          background: rgba(114, 137, 218, 0.2);
+          border: 1px solid rgba(114, 137, 218, 0.4);
+          color: #7289da;
+          width: 44px;
+          height: 44px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 18px;
+          transition: all 0.3s;
+          flex-shrink: 0;
+        }
+
+        .copy-button:hover {
+          background: rgba(114, 137, 218, 0.4);
+          transform: scale(1.1);
+          box-shadow: 0 4px 12px rgba(114, 137, 218, 0.3);
+        }
+
+        .instructions-box {
+          background: rgba(32, 34, 37, 0.5);
+          border-radius: 10px;
+          padding: 20px;
+          margin-bottom: 25px;
+          border-left: 4px solid #7289da;
+        }
+
+        .instructions-title {
+          color: #ffffff;
+          font-size: 16px;
+          margin-bottom: 12px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .instructions-list {
+          color: #b9bbbe;
+          font-size: 14px;
+          line-height: 1.6;
+          margin: 0;
+          padding-left: 20px;
+        }
+
+        .instructions-list li {
+          margin-bottom: 8px;
+        }
+
+        .instructions-list li:last-child {
+          margin-bottom: 0;
+        }
+
+        .success-actions {
+          display: flex;
+          gap: 12px;
+          margin-bottom: 25px;
+        }
+
+        .login-button {
+          flex: 1;
+          background: linear-gradient(135deg, #43b581 0%, #3ba55d 100%);
+          color: white;
+          border: none;
+          padding: 16px;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
+
+        .login-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(67, 181, 129, 0.4);
+        }
+
+        .back-button {
+          flex: 1;
+          background: transparent;
+          border: 2px solid rgba(114, 137, 218, 0.4);
+          color: #7289da;
+          padding: 16px;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s;
+        }
+
+        .back-button:hover {
+          background: rgba(114, 137, 218, 0.1);
+          transform: translateY(-2px);
+        }
+
+        .security-note {
+          background: rgba(237, 66, 69, 0.1);
+          border: 1px solid rgba(237, 66, 69, 0.3);
+          border-radius: 8px;
+          padding: 15px;
+          text-align: center;
+        }
+
+        .security-note p {
+          color: #ed4245;
+          font-size: 13px;
+          margin: 5px 0;
+          line-height: 1.4;
+        }
+
+        .security-note strong {
+          color: #ffffff;
+        }
+
         /* Animations */
         @keyframes starTwinkle {
           0%, 100% { 
@@ -584,6 +917,40 @@ const Register = () => {
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+
+        @keyframes successBounce {
+          0% {
+            transform: scale(0.5);
+            opacity: 0;
+          }
+          70% {
+            transform: scale(1.1);
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+
+        @keyframes iconFloat {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-3px);
+          }
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
         /* Mobile styles */
@@ -670,6 +1037,30 @@ const Register = () => {
           
           .social-note {
             font-size: 10px;
+          }
+
+          /* Responsive styles for success container */
+          .credentials-card {
+            padding: 15px;
+          }
+          
+          .credential-text {
+            font-size: 13px;
+            padding: 10px 12px;
+          }
+          
+          .copy-button {
+            width: 40px;
+            height: 40px;
+            font-size: 16px;
+          }
+          
+          .success-actions {
+            flex-direction: column;
+          }
+          
+          .instructions-box {
+            padding: 15px;
           }
         }
 

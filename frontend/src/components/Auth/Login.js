@@ -166,12 +166,12 @@ const Login = () => {
     onClick={() => setShowInstructions(!showInstructions)}
     className="instructions-toggle"
   >
-    {showInstructions ? '▼ Hide' : '▶ Show'} login help for new Google users
+    {showInstructions ? '▼ Hide' : '▶ Show'} login help for new VachoLink users
   </button>
   
   {showInstructions && (
     <div className="instructions-content">
-      <h4>👋 Welcome New Google Users!</h4>
+      <h4>👋 Welcome New VachoLink Users!</h4>
       <p>Your login credentials:</p>
       <div className="credentials-box">
         <p><strong>📧 Email:</strong> Your Google email</p>
@@ -179,7 +179,7 @@ const Login = () => {
         <p className="example">Example: If your name is "Sumukesh", password is "Sumukesh@vacholink"</p>
       </div>
       <p className="security-note">
-        <small>🔒 Please change your password in settings after login for security.</small>
+        <small>🔒 Please change your password in profile after login for security.</small>
       </p>
     </div>
   )}
