@@ -16,8 +16,6 @@ const path = require('path');
 
 dotenv.config();
 
-const signupOtps = new Map();
-
 const app = express();
 app.use(helmet());
 app.set('trust proxy', 1);
@@ -103,25 +101,6 @@ const upload = multer({
   }
 });
 
-// Resend Email Client
-const createResendClient = () => {
-  console.log('📧 Creating Resend client...');
-  
-  if (!process.env.RESEND_API_KEY) {
-    console.error('❌ RESEND_API_KEY is not set in environment variables');
-    return null;
-  }
-  
-  try {
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    console.log('✅ Resend client created successfully');
-    return resend;
-  } catch (error) {
-    console.error('❌ Failed to create Resend client:', error.message);
-    return null;
-  }
-};
-
 // ========== MODELS ==========
 
 // User Model
@@ -141,9 +120,7 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin'], 
     default: 'user' 
   },
-  isVerified: { type: Boolean, default: false },
-  resetToken: String,
-  resetTokenExpires: Date,
+  isVerified: { type: Boolean, default: true }, // Auto-verify for simple auth
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
@@ -223,231 +200,14 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// ========== AUTH ROUTES ==========
+// ========== SIMPLE AUTH ROUTES (NO OTP) ==========
 
-// Utility: generate 6-digit OTP
-const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
-
-// 0. Send OTP for Signup - DISABLED
-app.post('/api/auth/send-otp', async (req, res) => {
-  return res.status(410).json({ success: false, message: 'OTP verification has been disabled' });
-});
-
-// OTP endpoint code commented out - using direct registration instead
-app.post('/api/auth/send-otp-disabled', async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-
-    console.log('🔐 Send OTP request received for:', email);
-    console.log('📧 Environment check:', {
-      NODE_ENV: process.env.NODE_ENV || 'development',
-      RESEND_API_KEY_SET: !!process.env.RESEND_API_KEY
-    });
-
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: 'Name, email, and password are required' });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
-    }
-
-    // Check uniqueness
-    const existingEmail = await User.findOne({ email });
-    if (existingEmail) {
-      return res.status(400).json({ success: false, message: 'User with this email already exists' });
-    }
-
-    const existingName = await User.findOne({ name });
-    if (existingName) {
-      return res.status(400).json({ success: false, message: 'Display name is already taken, please choose another' });
-    }
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const otp = generateOtp();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    // Store OTP in memory
-    signupOtps.set(email, { name, hashedPassword, otp, expiresAt });
-    
-    console.log('📦 Generated OTP for', email, ':', otp);
-
-    // Send email via Resend
-    try {
-      const resend = createResendClient();
-      
-      if (!resend) {
-        throw new Error('Resend client not available');
-      }
-
-      const senderEmail =  'onboarding@resend.dev' || process.env.RESEND_SENDER;
-      
-      console.log('📤 Attempting to send email via Resend...');
-      
-      const { data, error } = await resend.emails.send({
-        from: `VachoLink <${senderEmail}>`,
-        to: [email],
-        subject: 'Your VachoLink Verification Code',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #e8e8e8; border-radius: 12px; background: linear-gradient(135deg, #1a1c22 0%, #0a0a0a 100%); color: #ffffff;">
-            <div style="text-align: center; margin-bottom: 40px;">
-              <div style="display: inline-flex; align-items: center; justify-content: center; width: 70px; height: 70px; background: linear-gradient(135deg, #43b581 0%, #3ba55d 100%); border-radius: 50%; color: white; font-weight: bold; font-size: 32px; margin-bottom: 20px; box-shadow: 0 0 20px rgba(67, 181, 129, 0.4);">
-                ꍡ
-              </div>
-              <h2 style="color: #ffffff; font-size: 28px; font-weight: 700; margin-bottom: 10px;">Verify Your Email</h2>
-              <p style="color: #b9bbbe; font-size: 16px;">Welcome to VachoLink! Use the code below to complete your signup.</p>
-            </div>
-            
-            <div style="background: rgba(32, 34, 37, 0.8); padding: 30px; text-align: center; border-radius: 10px; margin: 40px 0; border: 1px solid rgba(67, 181, 129, 0.3); backdrop-filter: blur(10px);">
-              <p style="color: #8e9297; margin: 0 0 15px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">VERIFICATION CODE</p>
-              <div style="font-size: 48px; font-weight: bold; letter-spacing: 15px; color: #43b581; font-family: 'Courier New', monospace; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 8px; display: inline-block; text-shadow: 0 0 10px rgba(67, 181, 129, 0.5);">
-                ${otp}
-              </div>
-              <p style="color: #8e9297; margin-top: 20px; font-size: 13px;">This code expires in 10 minutes</p>
-            </div>
-            
-            <div style="color: #8e9297; font-size: 14px; text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid rgba(32, 34, 37, 0.8);">
-              <p>If you didn't request this, please ignore this email.</p>
-              <p style="margin-top: 30px; font-size: 12px; color: #4f545c;">© ${new Date().getFullYear()} VachoLink. All rights reserved.</p>
-            </div>
-          </div>
-        `,
-        text: `Your VachoLink verification code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, please ignore this email.`
-      });
-
-      if (error) {
-        console.error('❌ Resend API error:', error);
-        throw new Error(`Resend failed: ${error.message}`);
-      }
-
-      console.log('✅ Email sent successfully via Resend! Email ID:', data?.id);
-      
-      // Success - don't return OTP in production
-      res.json({
-        success: true,
-        message: 'Verification code sent to your email',
-        otp: process.env.NODE_ENV === 'production' ? undefined : otp
-      });
-
-    } catch (emailError) {
-      console.error('❌ Email sending failed:', emailError.message);
-      
-      // Fallback: Return OTP anyway for user to manually enter
-      console.log('⚠️ Email service failed, returning OTP for manual entry:', otp);
-      
-      res.json({
-        success: true,
-        message: 'Check your email for verification code. If not received, use this code:',
-        otp: otp,
-        emailFailed: true
-      });
-    }
-
-  } catch (error) {
-    console.error('❌ Send OTP error:', error.message);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to process OTP request',
-      debug: process.env.NODE_ENV !== 'production' ? error.message : undefined
-    });
-  }
-});
-
-// 0b. Verify OTP and complete signup - DISABLED
-app.post('/api/auth/verify-otp', async (req, res) => {
-  return res.status(410).json({ success: false, message: 'OTP verification has been disabled' });
-});
-
-// OTP verification code commented out - using direct registration instead
-app.post('/api/auth/verify-otp-disabled', async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-
-    console.log('🔍 Verify OTP request:', { email, otpLength: otp?.length });
-
-    if (!email || !otp) {
-      return res.status(400).json({ success: false, message: 'Email and OTP are required' });
-    }
-
-    const pending = signupOtps.get(email);
-    if (!pending) {
-      return res.status(400).json({ success: false, message: 'No pending signup for this email' });
-    }
-
-    console.log('📦 Found pending signup for:', email);
-
-    if (pending.expiresAt < Date.now()) {
-      signupOtps.delete(email);
-      console.log('❌ OTP expired for:', email);
-      return res.status(400).json({ success: false, message: 'OTP expired, please request a new one' });
-    }
-
-    if (pending.otp !== otp) {
-      console.log('❌ Invalid OTP for:', email);
-      console.log('Expected:', pending.otp, 'Got:', otp);
-      return res.status(400).json({ success: false, message: 'Invalid OTP' });
-    }
-
-    // Final uniqueness check
-    const existingEmail = await User.findOne({ email });
-    if (existingEmail) {
-      signupOtps.delete(email);
-      return res.status(400).json({ success: false, message: 'User with this email already exists' });
-    }
-    
-    const existingName = await User.findOne({ name: pending.name });
-    if (existingName) {
-      signupOtps.delete(email);
-      return res.status(400).json({ success: false, message: 'Display name is already taken, please choose another' });
-    }
-
-    console.log('✅ OTP verified for:', email);
-    console.log('👤 Creating user:', pending.name);
-
-    // Create user
-    const user = await User.create({
-      name: pending.name,
-      email,
-      password: pending.hashedPassword,
-      isVerified: true
-    });
-
-    // Clean up
-    signupOtps.delete(email);
-
-    // Generate token
-    const token = jwt.sign(
-      { userId: user._id, email: user.email }, 
-      process.env.JWT_SECRET, 
-      { expiresIn: '7d' }
-    );
-
-    const userResponse = user.toObject();
-    delete userResponse.password;
-
-    console.log('🎉 User created successfully:', user.email);
-
-    res.status(201).json({
-      success: true,
-      message: 'Signup verified and completed',
-      token,
-      user: userResponse
-    });
-  } catch (error) {
-    console.error('❌ Verify OTP error:', error);
-    res.status(500).json({ success: false, message: 'Failed to verify OTP' });
-  }
-});
-
-// 1. Register with Email/Password (legacy endpoint)
+// 1. Simple Registration (No OTP)
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    console.log('📝 Legacy register endpoint called for:', email);
+    console.log('📝 Simple registration request for:', email);
 
     if (!name || !email || !password) {
       return res.status(400).json({ 
@@ -463,8 +223,9 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    // Check uniqueness
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
       return res.status(400).json({ 
         success: false, 
         message: 'User with this email already exists' 
@@ -479,6 +240,7 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
 
+    // Hash password and create user
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -489,6 +251,7 @@ app.post('/api/auth/register', async (req, res) => {
       isVerified: true
     });
 
+    // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, email: user.email }, 
       process.env.JWT_SECRET, 
@@ -498,17 +261,20 @@ app.post('/api/auth/register', async (req, res) => {
     const userResponse = user.toObject();
     delete userResponse.password;
 
+    console.log('✅ User registered successfully:', user.email);
+
     res.status(201).json({
       success: true,
-      message: 'Registration successful',
+      message: 'Registration successful! You can now login.',
       token,
       user: userResponse
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('❌ Registration error:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Server error during registration' 
+      message: 'Server error during registration',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -529,7 +295,7 @@ app.post('/api/auth/login', async (req, res) => {
     if (!user) {
       return res.status(401).json({ 
         success: false, 
-        message: 'Invalid credentials' 
+        message: 'Invalid email or password' 
       });
     }
 
@@ -537,14 +303,16 @@ app.post('/api/auth/login', async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({ 
         success: false, 
-        message: 'Invalid credentials' 
+        message: 'Invalid email or password' 
       });
     }
 
+    // Update user status
     user.online = true;
     user.lastSeen = new Date();
     await user.save();
 
+    // Generate token
     const token = jwt.sign(
       { userId: user._id, email: user.email }, 
       process.env.JWT_SECRET, 
@@ -556,12 +324,12 @@ app.post('/api/auth/login', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Login successful',
+      message: 'Login successful!',
       token,
       user: userResponse
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Server error during login' 
@@ -577,6 +345,7 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
       user: req.user
     });
   } catch (error) {
+    console.error('❌ Profile fetch error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch profile' 
@@ -605,6 +374,7 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
       user
     });
   } catch (error) {
+    console.error('❌ Profile update error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to update profile' 
@@ -651,7 +421,7 @@ app.post('/api/auth/profile/photo', authenticateToken, upload.single('profilePho
       photoUrl: result.secure_url
     });
   } catch (error) {
-    console.error('Profile photo upload error:', error);
+    console.error('❌ Profile photo upload error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to upload profile photo' 
@@ -699,7 +469,7 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
       message: 'Password changed successfully'
     });
   } catch (error) {
-    console.error('Change password error:', error);
+    console.error('❌ Change password error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to change password' 
@@ -707,154 +477,7 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
   }
 });
 
-// 7. Forgot Password - DISABLED
-app.post('/api/auth/forgot-password', async (req, res) => {
-  return res.status(410).json({ success: false, message: 'Password reset has been disabled' });
-});
-
-// Forgot password code commented out
-app.post('/api/auth/forgot-password-disabled', async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'User not found' 
-      });
-    }
-
-    const resetToken = jwt.sign(
-      { userId: user._id }, 
-      process.env.JWT_SECRET, 
-      { expiresIn: '1h' }
-    );
-
-    user.resetToken = resetToken;
-    user.resetTokenExpires = Date.now() + 3600000;
-    await user.save();
-
-    const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
-    
-    console.log('📧 Password reset requested for:', email);
-
-    // Send email via Resend
-    try {
-      const resend = createResendClient();
-      
-      if (resend) {
-        const senderEmail =  'onboarding@resend.dev' || process.env.RESEND_SENDER;
-        
-        await resend.emails.send({
-          from: `VachoLink <${senderEmail}>`,
-          to: [email],
-          subject: 'Password Reset Request - VachoLink',
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #e8e8e8; border-radius: 12px; background: linear-gradient(135deg, #1a1c22 0%, #0a0a0a 100%); color: #ffffff;">
-              <div style="text-align: center; margin-bottom: 30px;">
-                <h2 style="color: #ffffff; font-size: 24px; font-weight: 700; margin-bottom: 10px;">Password Reset</h2>
-                <p style="color: #b9bbbe;">You requested to reset your password. Click the button below:</p>
-              </div>
-              
-              <div style="text-align: center; margin: 40px 0;">
-                <a href="${resetUrl}" style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #43b581 0%, #3ba55d 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(67, 181, 129, 0.3);">
-                  Reset Password
-                </a>
-              </div>
-              
-              <div style="color: #8e9297; font-size: 14px; text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(32, 34, 37, 0.8);">
-                <p>This link will expire in 1 hour.</p>
-                <p>If you didn't request this, please ignore this email.</p>
-                <p style="margin-top: 30px; font-size: 12px; color: #4f545c;">© ${new Date().getFullYear()} VachoLink. All rights reserved.</p>
-              </div>
-            </div>
-          `,
-          text: `You requested to reset your password. Click this link: ${resetUrl}\n\nThis link expires in 1 hour.`
-        });
-        
-        console.log('✅ Password reset email sent via Resend');
-      }
-    } catch (emailError) {
-      console.error('❌ Failed to send password reset email:', emailError.message);
-    }
-
-    res.json({
-      success: true,
-      message: 'Password reset email sent'
-    });
-  } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to process request' 
-    });
-  }
-});
-
-// 8. Reset Password - DISABLED
-app.post('/api/auth/reset-password', async (req, res) => {
-  return res.status(410).json({ success: false, message: 'Password reset has been disabled' });
-});
-
-// Reset password code commented out
-app.post('/api/auth/reset-password-disabled', async (req, res) => {
-  try {
-    const { token, newPassword } = req.body;
-
-    if (!token || !newPassword) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Token and new password are required' 
-      });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Password must be at least 6 characters' 
-      });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    const user = await User.findOne({
-      _id: decoded.userId,
-      resetToken: token,
-      resetTokenExpires: { $gt: Date.now() }
-    });
-
-    if (!user) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid or expired token' 
-      });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-    user.password = hashedPassword;
-    user.resetToken = undefined;
-    user.resetTokenExpires = undefined;
-    await user.save();
-
-    console.log('✅ Password reset for user:', user.email);
-
-    res.json({
-      success: true,
-      message: 'Password reset successful'
-    });
-  } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to reset password' 
-    });
-  }
-});
-
-// 9. Logout
+// 7. Logout
 app.post('/api/auth/logout', authenticateToken, async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.user._id, {
@@ -867,6 +490,7 @@ app.post('/api/auth/logout', authenticateToken, async (req, res) => {
       message: 'Logged out successfully'
     });
   } catch (error) {
+    console.error('❌ Logout error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Logout failed' 
@@ -919,7 +543,7 @@ app.post('/api/chat/room', authenticateToken, async (req, res) => {
       room
     });
   } catch (error) {
-    console.error('Create room error:', error);
+    console.error('❌ Create room error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to create chat room' 
@@ -943,7 +567,7 @@ app.get('/api/chat/rooms', authenticateToken, async (req, res) => {
       rooms
     });
   } catch (error) {
-    console.error('Get rooms error:', error);
+    console.error('❌ Get rooms error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch chat rooms' 
@@ -971,7 +595,7 @@ app.delete('/api/chat/room/:roomId', authenticateToken, async (req, res) => {
 
     res.json({ success: true, message: 'Chat deleted' });
   } catch (error) {
-    console.error('Delete room error:', error);
+    console.error('❌ Delete room error:', error);
     res.status(500).json({ success: false, message: 'Failed to delete chat' });
   }
 });
@@ -1023,7 +647,7 @@ app.get('/api/chat/messages/:roomId', authenticateToken, async (req, res) => {
       total: await Message.countDocuments({ roomId, deleted: false })
     });
   } catch (error) {
-    console.error('Get messages error:', error);
+    console.error('❌ Get messages error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch messages' 
@@ -1059,7 +683,7 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
       users
     });
   } catch (error) {
-    console.error('Search users error:', error);
+    console.error('❌ Search users error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to search users' 
@@ -1102,7 +726,7 @@ io.use(async (socket, next) => {
 const onlineUsers = new Map();
 
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.userId);
+  console.log('✅ User connected:', socket.userId);
   
   onlineUsers.set(socket.userId.toString(), socket.id);
   
@@ -1156,7 +780,7 @@ io.on('connection', (socket) => {
       });
 
     } catch (error) {
-      console.error('Send message error:', error);
+      console.error('❌ Send message error:', error);
       socket.emit('message-error', { error: 'Failed to send message' });
     }
   });
@@ -1186,12 +810,12 @@ io.on('connection', (socket) => {
         readAt: new Date()
       });
     } catch (error) {
-      console.error('Mark read error:', error);
+      console.error('❌ Mark read error:', error);
     }
   });
 
   socket.on('disconnect', async () => {
-    console.log('User disconnected:', socket.userId);
+    console.log('❌ User disconnected:', socket.userId);
     
     onlineUsers.delete(socket.userId.toString());
     
@@ -1210,7 +834,8 @@ app.get('/health', (req, res) => {
     success: true, 
     message: 'Server is running', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    auth: 'simple-no-otp'
   });
 });
 
@@ -1220,5 +845,5 @@ server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📡 WebSocket server ready`);
   console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Allowed origins: ${allowedOrigins.join(', ') || 'None'}`);
+  console.log(`✅ Simple auth system active (no OTP)`);
 });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -9,7 +9,6 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
   const navigate = useNavigate();
   const [stars, setStars] = useState([]);
 
@@ -52,18 +51,32 @@ const Register = () => {
       return;
     }
 
+    if (name.length < 2) {
+      toast.error('Name must be at least 2 characters');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const result = await register(name, email, password);
-      if (result.success) {
-        toast.success('Registration successful!');
-        navigate('/');
+      const response = await axios.post('/api/auth/register', {
+        name,
+        email,
+        password
+      });
+
+      if (response.data.success) {
+        toast.success('Registration successful! You can now login.');
+        navigate('/login');
       } else {
-        toast.error(result.message);
+        toast.error(response.data.message || 'Registration failed');
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Registration failed');
+      console.error('Registration error:', error);
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Registration failed. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -107,20 +120,21 @@ const Register = () => {
             ꍡ
           </div>
           <h2 className="auth-title">Join VachoLink</h2>
-          <p className="auth-subtitle">Create your account</p>
+          <p className="auth-subtitle">Create your account instantly</p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="name">FULL NAME</label>
+            <label htmlFor="name">DISPLAY NAME</label>
             <input
               type="text"
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter your full name"
+              placeholder="Choose a display name"
               required
+              minLength="2"
               className="auth-input"
             />
           </div>
@@ -147,6 +161,7 @@ const Register = () => {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Create a password (min. 6 characters)"
               required
+              minLength="6"
               className="auth-input"
             />
           </div>
@@ -160,6 +175,7 @@ const Register = () => {
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm your password"
               required
+              minLength="6"
               className="auth-input"
             />
           </div>
@@ -183,52 +199,52 @@ const Register = () => {
             Sign in instead
           </Link>
           
-        <div className="form-social-links">
-          <div className="social-divider">
-            <span>Connect with Developer</span>
+          <div className="form-social-links">
+            <div className="social-divider">
+              <span>Connect with Developer</span>
+            </div>
+            <div className="social-links-container">
+              <a 
+                href="https://github.com/Sumukesh-Reddy" 
+                className="form-social-link"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="GitHub"
+              >
+                <span className="social-icon">{'</>'}</span>
+                <span className="social-label">GitHub</span>
+              </a>
+              <a 
+                href="mailto:sumukeshmopuram1@gmail.com" 
+                className="form-social-link"
+                title="Email"
+              >
+                <span className="social-icon">@</span>
+                <span className="social-label">Email</span>
+              </a>
+              <a 
+                href="https://www.linkedin.com/in/sumukesh-reddy-mopuram/" 
+                className="form-social-link"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="LinkedIn"
+              >
+                <span className="social-icon">in</span>
+                <span className="social-label">LinkedIn</span>
+              </a>
+              <a 
+                href="http://sumukesh-portfolio.vercel.app" 
+                className="form-social-link"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Portfolio"
+              >
+                <span className="social-icon">⎙</span>
+                <span className="social-label">Portfolio</span>
+              </a>
+            </div>
+            <p className="social-note">Have questions or feedback? Reach out!</p>
           </div>
-          <div className="social-links-container">
-            <a 
-              href="https://github.com/Sumukesh-Reddy" 
-              className="form-social-link"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="GitHub"
-            >
-              <span className="social-icon">{'</>'}</span>
-              <span className="social-label">GitHub</span>
-            </a>
-            <a 
-              href="mailto:sumukeshmopuram1@gmail.com" 
-              className="form-social-link"
-              title="Email"
-            >
-              <span className="social-icon">@</span>
-              <span className="social-label">Email</span>
-            </a>
-            <a 
-              href="https://www.linkedin.com/in/sumukesh-reddy-mopuram/" 
-              className="form-social-link"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="LinkedIn"
-            >
-              <span className="social-icon">in</span>
-              <span className="social-label">LinkedIn</span>
-            </a>
-            <a 
-              href="http://sumukesh-portfolio.vercel.app" 
-              className="form-social-link"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Portfolio"
-            >
-              <span className="social-icon">⎙</span>
-              <span className="social-label">Portfolio</span>
-            </a>
-          </div>
-          <p className="social-note">Have questions or feedback? Reach out!</p>
-        </div>
         </div>
       </div>
 
@@ -402,10 +418,12 @@ const Register = () => {
         .auth-button:disabled {
           background: #3ba55d;
           cursor: not-allowed;
+          opacity: 0.7;
         }
 
         .auth-button:not(:disabled):hover {
           transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(67, 181, 129, 0.3);
         }
 
         .button-glow {
@@ -454,6 +472,101 @@ const Register = () => {
         .auth-link:hover {
           background: rgba(114, 137, 218, 0.1);
           transform: translateY(-1px);
+        }
+
+        /* Social links */
+        .form-social-links {
+          margin-top: 25px;
+          margin-bottom: 10px;
+        }
+
+        .social-links-container {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 8px;
+          margin: 15px 0;
+        }
+
+        .form-social-link {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 10px 5px;
+          background: rgba(32, 34, 37, 0.5);
+          border-radius: 6px;
+          color: #b9bbbe;
+          text-decoration: none;
+          transition: all 0.3s;
+          border: 1px solid transparent;
+          min-height: 60px;
+        }
+
+        .form-social-link:hover {
+          background: rgba(67, 181, 129, 0.1);
+          border-color: rgba(67, 181, 129, 0.3);
+          color: #ffffff;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(67, 181, 129, 0.2);
+        }
+
+        .social-icon {
+          font-size: 16px;
+          font-weight: bold;
+          margin-bottom: 4px;
+          font-family: 'Courier New', monospace;
+          height: 24px;
+          width: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0, 0, 0, 0.3);
+          border-radius: 4px;
+          padding: 2px;
+        }
+
+        .social-label {
+          font-size: 10px;
+          font-weight: 500;
+          opacity: 0.9;
+          text-align: center;
+        }
+
+        .social-divider {
+          position: relative;
+          text-align: center;
+          margin: 15px 0;
+          color: #8e9297;
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .social-divider::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 0;
+          right: 0;
+          height: 1px;
+          background: rgba(32, 34, 37, 0.5);
+          z-index: 1;
+        }
+
+        .social-divider span {
+          position: relative;
+          background: rgba(47, 49, 54, 0.9);
+          padding: 0 15px;
+          z-index: 2;
+        }
+
+        .social-note {
+          text-align: center;
+          color: #8e9297;
+          font-size: 11px;
+          margin-top: 10px;
+          font-style: italic;
+          opacity: 0.8;
         }
 
         /* Animations */
@@ -542,6 +655,35 @@ const Register = () => {
             padding: 6px 12px;
             font-size: 13px;
           }
+
+          .social-links-container {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+          }
+          
+          .form-social-link {
+            padding: 8px 4px;
+            min-height: 55px;
+          }
+          
+          .social-icon {
+            font-size: 14px;
+            height: 22px;
+            width: 22px;
+          }
+          
+          .social-label {
+            font-size: 9px;
+          }
+          
+          .social-divider {
+            font-size: 10px;
+            margin: 12px 0;
+          }
+          
+          .social-note {
+            font-size: 10px;
+          }
         }
 
         /* Small mobile */
@@ -574,131 +716,6 @@ const Register = () => {
           }
         }
 
-          .form-social-links {
-            margin-top: 25px;
-            margin-bottom: 10px;
-          }
-
-          .social-links-container {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            margin: 15px 0;
-          }
-
-          .form-social-link {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 10px 5px;
-            background: rgba(32, 34, 37, 0.5);
-            border-radius: 6px;
-            color: #b9bbbe;
-            text-decoration: none;
-            transition: all 0.3s;
-            border: 1px solid transparent;
-            min-height: 60px;
-          }
-
-          .form-social-link:hover {
-            background: rgba(67, 181, 129, 0.1);
-            border-color: rgba(67, 181, 129, 0.3);
-            color: #ffffff;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(67, 181, 129, 0.2);
-          }
-
-          .social-icon {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 4px;
-            font-family: 'Courier New', monospace;
-            height: 24px;
-            width: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 4px;
-            padding: 2px;
-          }
-
-          .social-label {
-            font-size: 10px;
-            font-weight: 500;
-            opacity: 0.9;
-            text-align: center;
-          }
-
-          .social-divider {
-            position: relative;
-            text-align: center;
-            margin: 15px 0;
-            color: #8e9297;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-          }
-
-          .social-divider::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: rgba(32, 34, 37, 0.5);
-            z-index: 1;
-          }
-
-          .social-divider span {
-            position: relative;
-            background: rgba(47, 49, 54, 0.9);
-            padding: 0 15px;
-            z-index: 2;
-          }
-
-          .social-note {
-            text-align: center;
-            color: #8e9297;
-            font-size: 11px;
-            margin-top: 10px;
-            font-style: italic;
-            opacity: 0.8;
-          }
-
-          /* Mobile styles */
-          @media (max-width: 768px) {
-            .social-links-container {
-              grid-template-columns: repeat(2, 1fr);
-              gap: 6px;
-            }
-            
-            .form-social-link {
-              padding: 8px 4px;
-              min-height: 55px;
-            }
-            
-            .social-icon {
-              font-size: 14px;
-              height: 22px;
-              width: 22px;
-            }
-            
-            .social-label {
-              font-size: 9px;
-            }
-            
-            .social-divider {
-              font-size: 10px;
-              margin: 12px 0;
-            }
-            
-            .social-note {
-              font-size: 10px;
-            }
-          }
         /* Large screens */
         @media (min-width: 1200px) {
           .auth-form-container {
