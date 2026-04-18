@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "react-snowfall": "^2.4.0",
+    "snowfall": "^2.1.0"
+  }
+}
