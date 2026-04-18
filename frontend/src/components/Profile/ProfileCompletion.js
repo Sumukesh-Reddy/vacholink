@@ -35,14 +35,14 @@ const ProfileCompletion = () => {
       setStars(newStars);
     };
     
-    generateStars();
-    window.addEventListener('resize', generateStars);
-    return () => window.removeEventListener('resize', generateStars);
-
     // Set initial name from Google profile
     if (user?.name) {
       setName(user.name);
     }
+    
+    generateStars();
+    window.addEventListener('resize', generateStars);
+    return () => window.removeEventListener('resize', generateStars);
   }, [user]);
 
   const handleSubmit = async (e) => {

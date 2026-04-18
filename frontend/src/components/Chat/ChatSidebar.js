@@ -4,17 +4,6 @@ import { useAuth } from '../../contexts/AuthContext';
 const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, onlineUsers }) => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isMobile, setIsMobile] = useState(false);
-
-  React.useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   // Live heartbeat counter for Render keep-alive visual indicator
   const [heartbeat, setHeartbeat] = useState(0);

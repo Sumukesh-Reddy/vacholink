@@ -20,7 +20,6 @@ const ChatPage = () => {
   const [stars, setStars] = useState([]);
   const [comets, setComets] = useState([]);
   const [isMobile, setIsMobile] = useState(false);
-  const [showSidebarOnMobile, setShowSidebarOnMobile] = useState(true);
 
   // Check mobile view
   useEffect(() => {
@@ -100,7 +99,7 @@ const ChatPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedRoom]);
+  }, [selectedRoom, isMobile]);
 
   useEffect(() => {
     fetchChatRooms();
@@ -109,10 +108,6 @@ const ChatPage = () => {
   useEffect(() => {
     if (socket && selectedRoom) {
       socket.emit('join-room', selectedRoom._id);
-      // On mobile, hide sidebar when chat is selected
-      if (isMobile) {
-        setShowSidebarOnMobile(false);
-      }
     } else if (socket && !selectedRoom) {
       // Leave all rooms when no room is selected (going back)
       socket.emit('leave-room');
@@ -155,10 +150,6 @@ const ChatPage = () => {
   const handleSelectRoom = (room) => {
     setSelectedRoom(room);
     fetchMessages(room._id);
-    // On mobile, hide sidebar when selecting a room
-    if (isMobile) {
-      setShowSidebarOnMobile(false);
-    }
   };
 
   const handleSendMessage = (content) => {
@@ -208,10 +199,6 @@ const ChatPage = () => {
       if (selectedRoom && selectedRoom._id === roomId) {
         setSelectedRoom(null);
         setMessages([]);
-        // On mobile, show sidebar when chat is deleted
-        if (isMobile) {
-          setShowSidebarOnMobile(true);
-        }
       }
       toast.success('Chat deleted');
     } catch (error) {
@@ -220,10 +207,6 @@ const ChatPage = () => {
   };
 
   const handleBackToChats = () => {
-    // On mobile, ensure sidebar is shown first
-    if (isMobile) {
-      setShowSidebarOnMobile(true);
-    }
     // Clear selected room and messages
     setSelectedRoom(null);
     setMessages([]);
