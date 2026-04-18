@@ -64,6 +64,7 @@ const ForgotPassword = () => {
         email,
         otp,
         newPassword
+      });
       if (response.data.success) {
         toast.success(user ? 'Password reset successfully!' : 'Password reset successfully! You can now login.');
         navigate(user ? '/profile' : '/login');
