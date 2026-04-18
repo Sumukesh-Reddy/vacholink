@@ -109,6 +109,7 @@ const ForgotPassword = () => {
                 placeholder="Enter your registered email"
                 required 
               />
+            </div>
             <button type="submit" disabled={loading} className="auth-button">
               {loading ? 'Processing...' : 'Send Recovery OTP'}
             </button>
