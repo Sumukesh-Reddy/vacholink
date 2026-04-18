@@ -8,8 +8,6 @@ const API_URL =  "https://vacholink.onrender.com" || process.env.REACT_APP_API_U
 
 const ProfileCompletion = () => {
   const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [stars, setStars] = useState([]);
   const navigate = useNavigate();
@@ -48,16 +46,6 @@ const ProfileCompletion = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (password && password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-
     if (!name.trim()) {
       toast.error('Display name is required');
       return;
@@ -71,8 +59,7 @@ const ProfileCompletion = () => {
       const response = await axios.post(
         `${API_URL}/api/auth/complete-profile`,
         {
-          name: name.trim(),
-          password: password.trim() || undefined
+          name: name.trim()
         },
         {
           headers: {
@@ -174,35 +161,6 @@ const ProfileCompletion = () => {
               This is how others will see you
             </div>
           </div>
-
-          <div className="pc-form-group">
-            <label htmlFor="password">PASSWORD (OPTIONAL)</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Set a password for email login"
-              className="pc-input"
-            />
-            <div className="pc-hint">
-              Minimum 6 characters. Optional but recommended.
-            </div>
-          </div>
-
-          {password && (
-            <div className="pc-form-group">
-              <label htmlFor="confirmPassword">CONFIRM PASSWORD</label>
-              <input
-                type="password"
-                id="confirmPassword"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm your password"
-                className="pc-input"
-              />
-            </div>
-          )}
 
           <div className="pc-buttons">
             <button
