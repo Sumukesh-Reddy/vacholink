@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import FriendProfileModal from '../Friends/FriendProfileModal';
 
 const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onBack, isMobile }) => {
   const { user } = useAuth();
@@ -7,8 +8,10 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const [stars, setStars] = useState([]);
+  const [showFriendProfile, setShowFriendProfile] = useState(false);
   
-  const otherParticipant = room.participants?.find(p => p._id !== user?._id) || room.participants?.[0];
+  // Robust check for the other person in a 1v1 chat
+  const otherParticipant = room.participants?.filter(p => p._id !== user?._id)[0] || room.participants?.[0];
 
   useEffect(() => {
     // Generate responsive stars
@@ -113,7 +116,12 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           </button>
         )}
         
-        <div className="header-user">
+        
+        <div 
+          className="header-user" 
+          onClick={() => setShowFriendProfile(true)}
+          style={{ cursor: 'pointer' }}
+        >
           <div className="user-avatar-container">
             <img
               src={otherParticipant?.profilePhoto || `https://ui-avatars.com/api/?name=${otherParticipant?.name}&background=7289da&color=fff`}
@@ -239,6 +247,13 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           </button>
         </form>
       </div>
+
+      {showFriendProfile && (
+        <FriendProfileModal 
+          user={otherParticipant} 
+          onClose={() => setShowFriendProfile(false)} 
+        />
+      )}
 
       <style>{`
         /* Base styles */
