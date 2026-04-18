@@ -184,32 +184,6 @@ const Login = () => {
           </button>
         </form>
 
-        
-<div className="new-user-instructions">
-  <button
-    type="button"
-    onClick={() => setShowInstructions(!showInstructions)}
-    className="instructions-toggle"
-  >
-    {showInstructions ? '▼ Hide' : '▶ Show'} login help for new VachoLink users
-  </button>
-  
-  {showInstructions && (
-    <div className="instructions-content">
-      <h4>👋 Welcome New VachoLink Users!</h4>
-      <p>Your login credentials:</p>
-      <div className="credentials-box">
-        <p><strong>📧 Email:</strong> Your Google email</p>
-        <p><strong>🔑 Password:</strong> Your Google mail name + "@vacholink"</p>
-        <p className="example">Example: If your gmail is "sumukesh@gmail.com", password is "sumukesh@vacholink"</p>
-      </div>
-      <p className="security-note">
-        <small>🔒 Please change your password in profile after login for security.</small>
-      </p>
-    </div>
-  )}
-</div>
-
         {/* Footer */}
         <div className="login-footer">
           <p>Don't have an account?</p>
