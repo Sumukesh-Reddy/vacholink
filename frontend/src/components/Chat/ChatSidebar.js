@@ -30,12 +30,6 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
 
   return (
     <div className="chat-sidebar">
-      <div className="sidebar-live-indicator">
-        <div className="live-badge">
-          <span className="live-dot"></span>
-          <span className="live-text">RENDER LIVE NEXUS:{heartbeat}</span>
-        </div>
-      </div>
       <div className="sidebar-header">
         <div className="search-container">
           <input
