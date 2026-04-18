@@ -7,10 +7,18 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [stars, setStars] = useState([]);
   const [showInstructions, setShowInstructions] = useState(false);
+  
+  useEffect(() => {
+    // Redirect if already authenticated
+    if (user && !authLoading) {
+      navigate('/profile', { replace: true });
+    }
+  }, [user, authLoading, navigate]);
+
   useEffect(() => {
     // Generate responsive stars
     const generateStars = () => {

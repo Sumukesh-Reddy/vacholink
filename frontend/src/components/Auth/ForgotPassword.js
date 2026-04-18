@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
@@ -14,6 +15,7 @@ const ForgotPassword = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [stars, setStars] = useState([]);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     const starCount = 50;
@@ -62,10 +64,9 @@ const ForgotPassword = () => {
         email,
         otp,
         newPassword
-      });
       if (response.data.success) {
-        toast.success('Password reset successfully! You can now login.');
-        navigate('/login');
+        toast.success(user ? 'Password reset successfully!' : 'Password reset successfully! You can now login.');
+        navigate(user ? '/profile' : '/login');
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Reset failed');
@@ -107,11 +108,12 @@ const ForgotPassword = () => {
                 placeholder="Enter your registered email"
                 required 
               />
-            </div>
             <button type="submit" disabled={loading} className="auth-button">
               {loading ? 'Processing...' : 'Send Recovery OTP'}
             </button>
-            <Link to="/login" className="auth-back-btn">Back to Login</Link>
+            <Link to={user ? "/profile" : "/login"} className="auth-back-btn">
+              {user ? "Back to Profile" : "Back to Login"}
+            </Link>
           </form>
         ) : (
           <form onSubmit={handleResetPassword} className="auth-form">

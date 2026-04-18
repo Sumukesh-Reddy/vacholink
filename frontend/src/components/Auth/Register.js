@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
@@ -16,6 +17,13 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [stars, setStars] = useState([]);
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate('/profile', { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
   useEffect(() => {
     const generateStars = () => {
