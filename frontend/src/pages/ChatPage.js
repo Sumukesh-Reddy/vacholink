@@ -231,8 +231,103 @@ const ChatPage = () => {
 
   if (loading) {
     return (
-      <div className="chat-loading-container">
-        {/* ... loading content remains the same ... */}
+      <div className="chat-loading-wrapper">
+        <div className="loading-content">
+          <div className="loading-logo">ꍡ</div>
+          <div className="loading-spinner">
+            <div className="spinner-ring"></div>
+            <div className="spinner-ring"></div>
+            <div className="spinner-ring"></div>
+          </div>
+          <div className="loading-text">
+            <span>Synchronizing Nexus...</span>
+            <div className="loading-dots">
+              <div className="dot"></div>
+              <div className="dot"></div>
+              <div className="dot"></div>
+            </div>
+          </div>
+        </div>
+        <style>{`
+          .chat-loading-wrapper {
+            height: 100vh;
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+          }
+          .loading-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            z-index: 10;
+          }
+          .loading-logo {
+            font-size: 48px;
+            color: #7289da;
+            text-shadow: 0 0 20px rgba(114, 137, 218, 0.5);
+            animation: pulseLogo 2s ease-in-out infinite;
+          }
+          .loading-spinner {
+            position: relative;
+            width: 80px;
+            height: 80px;
+          }
+          .spinner-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 2px solid transparent;
+            border-top-color: #7289da;
+            border-radius: 50%;
+            animation: spin 1.5s linear infinite;
+          }
+          .spinner-ring:nth-child(2) {
+            width: 70%;
+            height: 70%;
+            top: 15%;
+            left: 15%;
+            border-top-color: #43b581;
+            animation-duration: 2s;
+            animation-direction: reverse;
+          }
+          .spinner-ring:nth-child(3) {
+            width: 40%;
+            height: 40%;
+            top: 30%;
+            left: 30%;
+            border-top-color: #ffffff;
+            animation-duration: 1s;
+          }
+          .loading-text {
+            color: #b9bbbe;
+            font-size: 16px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Inter', sans-serif;
+          }
+          .loading-dots {
+            display: flex;
+            gap: 4px;
+          }
+          .dot {
+            width: 4px;
+            height: 4px;
+            background: #7289da;
+            border-radius: 50%;
+            animation: dotFlashing 1s infinite;
+          }
+          .dot:nth-child(2) { animation-delay: 0.2s; }
+          .dot:nth-child(3) { animation-delay: 0.4s; }
+          @keyframes spin { to { transform: rotate(360deg); } }
+          @keyframes pulseLogo { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } }
+          @keyframes dotFlashing { 0% { opacity: 0.2; } 50% { opacity: 1; } 100% { opacity: 0.2; } }
+        `}</style>
       </div>
     );
   }

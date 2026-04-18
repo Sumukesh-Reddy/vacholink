@@ -414,8 +414,13 @@ const PrivateRoute = ({ children }) => {
 
   // If no user, redirect to login
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }  
+
+  // Redirect to profile completion if required and not already there
+  if (user.needsProfileCompletion && location.pathname !== '/complete-profile') {
+    return <Navigate to="/complete-profile" replace />;
+  }
 
   return children;
 };

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
 
 const ChangePassword = ({ onClose, onSuccess }) => {
   const { changePassword } = useAuth();
+  const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -103,10 +105,27 @@ const ChangePassword = ({ onClose, onSuccess }) => {
 
         <form onSubmit={handleSubmit} className="profile-form">
           <div className="form-group">
-            <label htmlFor="currentPassword">
-              <span className="label-icon">🔒</span>
-              Current Password
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label htmlFor="currentPassword">
+                <span className="label-icon">🔒</span>
+                Current Password
+              </label>
+              <button 
+                type="button"
+                onClick={() => { onClose(); navigate('/forgot-password'); }}
+                style={{ 
+                  background: 'transparent', 
+                  border: 'none', 
+                  color: '#00aff4', 
+                  fontSize: '11px', 
+                  cursor: 'pointer',
+                  marginBottom: '8px',
+                  fontWeight: '600'
+                }}
+              >
+                Forgot?
+              </button>
+            </div>
             <input
               type="password"
               id="currentPassword"

@@ -8,7 +8,7 @@ router.get("/:roomId", async (req, res) => {
     const msgs = await Message.find({ roomId: req.params.roomId })
       .populate("sender", "name avatar")
       .sort({ createdAt: 1 })
-      .limit(100); // Limit to last 100 messages
+      .limit(100); 
 
     res.json(msgs);
   } catch (err) {

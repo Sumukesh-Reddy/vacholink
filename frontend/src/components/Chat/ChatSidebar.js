@@ -16,6 +16,15 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Live heartbeat counter for Render keep-alive visual indicator
+  const [heartbeat, setHeartbeat] = useState(0);
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setHeartbeat(prev => (prev < 10 ? prev + 1 : 0));
+    }, 60000); // UI updates every minute to match server pulse
+    return () => clearInterval(interval);
+  }, []);
+
   // Filter rooms based on search
   const filteredRooms = rooms.filter(room => {
     if (!searchQuery) return true;
@@ -32,6 +41,12 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
 
   return (
     <div className="chat-sidebar">
+      <div className="sidebar-live-indicator">
+        <div className="live-badge">
+          <span className="live-dot"></span>
+          <span className="live-text">RENDER LIVE NEXUS:{heartbeat}</span>
+        </div>
+      </div>
       <div className="sidebar-header">
         <div className="search-container">
           <input
@@ -131,6 +146,46 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
           flex-shrink: 0;
           position: relative;
           z-index: 10;
+        }
+
+        .sidebar-live-indicator {
+          padding: 8px 16px;
+          background: #202225;
+          border-bottom: 1px solid rgba(114, 137, 218, 0.2);
+          display: flex;
+          justify-content: center;
+        }
+
+        .live-badge {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 4px 12px;
+          background: rgba(67, 181, 129, 0.1);
+          border-radius: 20px;
+          border: 1px solid rgba(67, 181, 129, 0.3);
+        }
+
+        .live-dot {
+          width: 6px;
+          height: 6px;
+          background: #43b581;
+          border-radius: 50%;
+          animation: livePulse 2s infinite;
+        }
+
+        .live-text {
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 1px;
+          color: #43b581;
+          font-family: 'Inter', sans-serif;
+        }
+
+        @keyframes livePulse {
+          0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(67, 181, 129, 0.4); }
+          70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 6px rgba(67, 181, 129, 0); }
+          100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(67, 181, 129, 0); }
         }
 
         /* Header */

@@ -12,6 +12,7 @@ import Register from './components/Auth/Register';
 import ChatPage from './pages/ChatPage';
 import ProfilePage from './pages/ProfilePage';
 import ProfileCompletion from './components/Profile/ProfileCompletion';
+import ForgotPassword from './components/Auth/ForgotPassword';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
                 
                 
                 <Route path="/" element={

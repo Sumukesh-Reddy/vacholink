@@ -14,6 +14,7 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const path = require('path');
 const { OAuth2Client } = require('google-auth-library');
+const nodemailer = require('nodemailer');
 
 dotenv.config();
 
@@ -112,6 +113,24 @@ const upload = multer({
       return cb(null, true);
     }
     cb(new Error('Only image files are allowed!'));
+  }
+});
+
+// Nodemailer Transporter
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+// Verify transporter
+transporter.verify((error, success) => {
+  if (error) {
+    console.warn('📧 Nodemailer verification failed:', error.message);
+  } else {
+    console.log('📧 Nodemailer is ready to send emails');
   }
 });
 
@@ -440,51 +459,93 @@ app.post('/api/auth/complete-profile', authenticateToken, async (req, res) => {
 });
 // ========== EXISTING AUTH ROUTES ==========
 
-// Send OTP for Signup - DISABLED
+// Send OTP for Signup
 app.post('/api/auth/send-otp', async (req, res) => {
-  return res.status(410).json({ success: false, message: 'OTP verification has been disabled' });
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'User with this email already exists' });
+    }
+
+    const otp = generateOtp();
+    const expires = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    signupOtps.set(email, { otp, expires });
+
+    const mailOptions = {
+      from: `"VachoLink" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'VachoLink - Verify Your Email',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+          <h2 style="color: #7289da;">Welcome to VachoLink!</h2>
+          <p>Your one-time password (OTP) for registration is:</p>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #7289da; margin: 20px 0;">
+            ${otp}
+          </div>
+          <p>This OTP will expire in 10 minutes.</p>
+          <p>If you didn't request this, please ignore this email.</p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`📧 OTP sent to ${email}`);
+
+    res.json({ success: true, message: 'OTP sent successfully to your email' });
+  } catch (error) {
+    console.error('Send OTP error:', error);
+    res.status(500).json({ success: false, message: 'Failed to send OTP' });
+  }
 });
 
-// Verify OTP and complete signup - DISABLED
+// Verify OTP
 app.post('/api/auth/verify-otp', async (req, res) => {
-  return res.status(410).json({ success: false, message: 'OTP verification has been disabled' });
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ success: false, message: 'Email and OTP are required' });
+
+    const storedData = signupOtps.get(email);
+    if (!storedData) {
+      return res.status(400).json({ success: false, message: 'OTP not requested or expired' });
+    }
+
+    if (Date.now() > storedData.expires) {
+      signupOtps.delete(email);
+      return res.status(400).json({ success: false, message: 'OTP has expired' });
+    }
+
+    if (storedData.otp !== otp) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    // Mark as verified in the map
+    signupOtps.set(email, { ...storedData, verified: true });
+
+    res.json({ success: true, message: 'OTP verified successfully' });
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    res.status(500).json({ success: false, message: 'Server error during OTP verification' });
+  }
 });
 
-// Register with Email/Password (legacy endpoint)
+// Register with Email/Password (now requires OTP)
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    console.log('📝 Legacy register endpoint called for:', email);
-
     if (!name || !email || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Please provide name, email, and password' 
-      });
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Password must be at least 6 characters' 
-      });
-    }
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'User with this email already exists' 
-      });
-    }
-
-    const existingName = await User.findOne({ name });
-    if (existingName) {
-      return res.status(400).json({
-        success: false,
-        message: 'Display name is already taken, please choose another'
-      });
+    // Verify OTP was previously verified
+    const storedData = signupOtps.get(email);
+    if (!storedData || !storedData.verified) {
+      return res.status(401).json({ success: false, message: 'Email not verified. Please verify OTP first.' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -496,6 +557,9 @@ app.post('/api/auth/register', async (req, res) => {
       password: hashedPassword,
       isVerified: true
     });
+
+    // Cleanup OTP
+    signupOtps.delete(email);
 
     const token = jwt.sign(
       { userId: user._id, email: user.email }, 
@@ -514,10 +578,7 @@ app.post('/api/auth/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error during registration' 
-    });
+    res.status(500).json({ success: false, message: 'Registration failed' });
   }
 });
 
@@ -737,14 +798,76 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
   }
 });
 
-// Forgot Password - DISABLED
+// Forgot Password - Initiate
 app.post('/api/auth/forgot-password', async (req, res) => {
-  return res.status(410).json({ success: false, message: 'Password reset has been disabled' });
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const resetOtp = generateOtp();
+    user.resetToken = resetOtp;
+    user.resetTokenExpires = Date.now() + 15 * 60 * 1000; // 15 mins
+    await user.save();
+
+    const mailOptions = {
+      from: `"VachoLink" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'VachoLink - Password Reset OTP',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+          <h2 style="color: #7289da;">Password Reset</h2>
+          <p>You requested a password reset. Your OTP is:</p>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #7289da; margin: 20px 0;">
+            ${resetOtp}
+          </div>
+          <p>This OTP will expire in 15 minutes.</p>
+          <p>If you didn't request this, please ignore this email.</p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ success: true, message: 'Password reset OTP sent to your email' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Failed to process forgot password' });
+  }
 });
 
-// Reset Password - DISABLED
+// Reset Password - Verify and Update
 app.post('/api/auth/reset-password', async (req, res) => {
-  return res.status(410).json({ success: false, message: 'Password reset has been disabled' });
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+
+    const user = await User.findOne({ 
+      email, 
+      resetToken: otp,
+      resetTokenExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired reset OTP' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    user.resetToken = undefined;
+    user.resetTokenExpires = undefined;
+    await user.save();
+
+    res.json({ success: true, message: 'Password reset successful. You can now login.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reset password' });
+  }
 });
 
 // Logout
@@ -964,8 +1087,9 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL,
-    methods: ["GET", "POST"]
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -1107,6 +1231,33 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Function to keep Render service live by self-pinging
+const keepRenderLive = () => {
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i <= 10) {
+      console.log(`Keep-Alive Heartbeat: ${i}`);
+      i++;
+    } else {
+      i = 0;
+      console.log('Keep-Alive Heartbeat Reset');
+    }
+    
+    // Self-ping logic to prevent Render spin-down
+    // Detect public URL from Render environment variables or fallback to localhost
+    const publicUrl = process.env.RENDER_EXTERNAL_URL || 
+                     (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : `http://localhost:${PORT}`);
+    
+    http.get(`${publicUrl}/health`, (res) => {
+      res.on('data', () => {}); // Consume response
+    }).on('error', (err) => {
+      console.error('Keep-Render-Live heartbeat failed:', err.message);
+    });
+  }, 5 * 60 * 1000); // Every 5 minutes
+  
+  return interval;
+};
+
 // Start server
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
@@ -1114,4 +1265,7 @@ server.listen(PORT, () => {
   console.log(`📡 WebSocket server ready`);
   console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 Allowed origins: ${allowedOrigins.join(', ') || 'None'}`);
+  
+  // Start the keep-alive loop
+  keepRenderLive();
 });
