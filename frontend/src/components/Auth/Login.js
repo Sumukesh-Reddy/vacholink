@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -149,15 +150,24 @@ const Login = () => {
                 Forgot Password?
               </Link>
             </div>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-              className="login-input"
-            />
+            <div className="login-password-wrapper">
+              <input
+                type={showPassword ? "text" : "password"}
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                className="login-input"
+              />
+              <button 
+                type="button"
+                className="login-password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
+            </div>
           </div>
 
           <div className="login-remember">
@@ -470,6 +480,32 @@ const Login = () => {
           border-color: #7289da;
           box-shadow: 0 0 0 2px rgba(114, 137, 218, 0.2);
           background: rgba(32, 34, 37, 0.9);
+        }
+
+        .login-password-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .login-password-toggle {
+          position: absolute;
+          right: 12px;
+          background: transparent;
+          border: none;
+          color: #8e9297;
+          cursor: pointer;
+          font-size: 18px;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.2s;
+          z-index: 2;
+        }
+
+        .login-password-toggle:hover {
+          color: #7289da;
         }
 
         /* Remember me checkbox */

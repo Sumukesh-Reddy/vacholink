@@ -13,6 +13,8 @@ const ForgotPassword = () => {
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [stars, setStars] = useState([]);
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -133,23 +135,41 @@ const ForgotPassword = () => {
             </div>
             <div className="auth-input-group">
               <label>NEW PASSWORD</label>
-              <input 
-                type="password" 
-                value={newPassword} 
-                onChange={(e) => setNewPassword(e.target.value)} 
-                placeholder="Min 6 characters"
-                required 
-              />
+              <div className="auth-password-wrapper">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  value={newPassword} 
+                  onChange={(e) => setNewPassword(e.target.value)} 
+                  placeholder="Min 6 characters"
+                  required 
+                />
+                <button 
+                  type="button"
+                  className="auth-password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
             </div>
             <div className="auth-input-group">
               <label>CONFIRM NEW PASSWORD</label>
-              <input 
-                type="password" 
-                value={confirmPassword} 
-                onChange={(e) => setConfirmPassword(e.target.value)} 
-                placeholder="Repeat new password"
-                required 
-              />
+              <div className="auth-password-wrapper">
+                <input 
+                  type={showConfirmPassword ? "text" : "password"} 
+                  value={confirmPassword} 
+                  onChange={(e) => setConfirmPassword(e.target.value)} 
+                  placeholder="Repeat new password"
+                  required 
+                />
+                <button 
+                  type="button"
+                  className="auth-password-toggle"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
             </div>
             <button type="submit" disabled={loading} className="auth-button">
               {loading ? 'Resetting...' : 'Update Password'}
@@ -204,6 +224,37 @@ const ForgotPassword = () => {
         .auth-input-group label { color: #8e9297; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
         .auth-input-group input { background: #202225; border: 1px solid transparent; border-radius: 6px; padding: 12px; color: #dcddde; font-size: 15px; }
         .auth-input-group input:focus { border-color: #7289da; outline: none; }
+
+        .auth-password-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .auth-password-wrapper input {
+          width: 100%;
+        }
+
+        .auth-password-toggle {
+          position: absolute;
+          right: 12px;
+          background: transparent;
+          border: none;
+          color: #8e9297;
+          cursor: pointer;
+          font-size: 18px;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.2s;
+          z-index: 2;
+        }
+
+        .auth-password-toggle:hover {
+          color: #7289da;
+        }
+
         .auth-button { background: #7289da; color: white; border: none; border-radius: 6px; padding: 14px; font-size: 15px; font-weight: 600; cursor: pointer; }
         .auth-button:hover:not(:disabled) { background: #5b6eae; }
         .auth-back-btn { background: transparent; color: #b9bbbe; border: none; font-size: 13px; cursor: pointer; text-align: center; text-decoration: none; margin-top: 10px;}

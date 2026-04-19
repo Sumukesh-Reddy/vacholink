@@ -9,6 +9,9 @@ const ChangePassword = ({ onClose, onSuccess }) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [stars, setStars] = useState([]);
 
@@ -126,15 +129,24 @@ const ChangePassword = ({ onClose, onSuccess }) => {
                 Forgot?
               </button>
             </div>
-            <input
-              type="password"
-              id="currentPassword"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="Enter your current password"
-              required
-              className="password-input"
-            />
+            <div className="password-wrapper-rel">
+              <input
+                type={showCurrentPassword ? "text" : "password"}
+                id="currentPassword"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Enter your current password"
+                required
+                className="password-input"
+              />
+              <button 
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+              >
+                {showCurrentPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
+            </div>
           </div>
 
           <div className="form-group">
@@ -142,15 +154,24 @@ const ChangePassword = ({ onClose, onSuccess }) => {
               <span className="label-icon">✨</span>
               New Password
             </label>
-            <input
-              type="password"
-              id="newPassword"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter your new password"
-              required
-              className="password-input"
-            />
+            <div className="password-wrapper-rel">
+              <input
+                type={showNewPassword ? "text" : "password"}
+                id="newPassword"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter your new password"
+                required
+                className="password-input"
+              />
+              <button 
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+              >
+                {showNewPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
+            </div>
             <div className="password-hint">
               Password must be at least 6 characters
             </div>
@@ -161,15 +182,24 @@ const ChangePassword = ({ onClose, onSuccess }) => {
               <span className="label-icon">✓</span>
               Confirm New Password
             </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter your new password"
-              required
-              className="password-input"
-            />
+            <div className="password-wrapper-rel">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                id="confirmPassword"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter your new password"
+                required
+                className="password-input"
+              />
+              <button 
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
+            </div>
           </div>
 
           <div className="modal-actions">
@@ -372,6 +402,32 @@ const ChangePassword = ({ onClose, onSuccess }) => {
           border-color: #7289da;
           box-shadow: inset 0 2px 4px rgba(0,0,0,0.2), 0 0 0 2px rgba(114, 137, 218, 0.3);
           outline: none;
+        }
+
+        .password-wrapper-rel {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .password-toggle-btn {
+          position: absolute;
+          right: 12px;
+          background: transparent;
+          border: none;
+          color: #8e9297;
+          cursor: pointer;
+          font-size: 16px;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.2s;
+          z-index: 2;
+        }
+
+        .password-toggle-btn:hover {
+          color: #7289da;
         }
 
         .password-input::placeholder {

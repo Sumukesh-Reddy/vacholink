@@ -8,6 +8,8 @@ const API_URL =  "https://vacholink.onrender.com" || process.env.REACT_APP_API_U
 
 const ProfileCompletion = () => {
   const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [stars, setStars] = useState([]);
   const navigate = useNavigate();
@@ -51,6 +53,16 @@ const ProfileCompletion = () => {
       return;
     }
 
+    if (user?.isGoogleUser && !user.password && !password.trim()) {
+      toast.error('Password is required for your account security');
+      return;
+    }
+
+    if (password && password.trim().length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -59,7 +71,8 @@ const ProfileCompletion = () => {
       const response = await axios.post(
         `${API_URL}/api/auth/complete-profile`,
         {
-          name: name.trim()
+          name: name.trim(),
+          password: password.trim() || undefined
         },
         {
           headers: {
@@ -161,6 +174,33 @@ const ProfileCompletion = () => {
               This is how others will see you
             </div>
           </div>
+
+          {user?.isGoogleUser && !user.password && (
+            <div className="pc-form-group">
+              <label htmlFor="password">SET ACCOUNT PASSWORD</label>
+              <div className="pc-password-wrapper">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Set a password for your account"
+                  required
+                  className="pc-input"
+                />
+                <button 
+                  type="button"
+                  className="pc-password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
+              <div className="pc-hint">
+                Since you signed in with Google, please set a password for security
+              </div>
+            </div>
+          )}
 
           <div className="pc-buttons">
             <button
@@ -366,6 +406,32 @@ const ProfileCompletion = () => {
           border-color: #ff9800;
           box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.2);
           background: rgba(32, 34, 37, 0.9);
+        }
+
+        .pc-password-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .pc-password-toggle {
+          position: absolute;
+          right: 12px;
+          background: transparent;
+          border: none;
+          color: #8e9297;
+          cursor: pointer;
+          font-size: 18px;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.2s;
+          z-index: 2;
+        }
+
+        .pc-password-toggle:hover {
+          color: #ff9800;
         }
 
         .pc-hint {

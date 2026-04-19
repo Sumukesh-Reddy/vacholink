@@ -15,6 +15,8 @@ const Register = () => {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [stars, setStars] = useState([]);
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -218,23 +220,41 @@ const Register = () => {
             </div>
             <div className="auth-input-group">
               <label>CREATE PASSWORD</label>
-              <input 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                placeholder="At least 6 characters"
-                required 
-              />
+              <div className="auth-password-wrapper">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  placeholder="At least 6 characters"
+                  required 
+                />
+                <button 
+                  type="button"
+                  className="auth-password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
             </div>
             <div className="auth-input-group">
               <label>CONFIRM PASSWORD</label>
-              <input 
-                type="password" 
-                value={confirmPassword} 
-                onChange={(e) => setConfirmPassword(e.target.value)} 
-                placeholder="Repeat password"
-                required 
-              />
+              <div className="auth-password-wrapper">
+                <input 
+                  type={showConfirmPassword ? "text" : "password"} 
+                  value={confirmPassword} 
+                  onChange={(e) => setConfirmPassword(e.target.value)} 
+                  placeholder="Repeat password"
+                  required 
+                />
+                <button 
+                  type="button"
+                  className="auth-password-toggle"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
             </div>
             <button type="submit" disabled={loading} className="auth-button">
               {loading ? 'Creating Account...' : 'Complete Signup'}
@@ -345,6 +365,36 @@ const Register = () => {
         .auth-input-group input:focus {
           border-color: #7289da;
           outline: none;
+        }
+
+        .auth-password-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .auth-password-wrapper input {
+          width: 100%;
+        }
+
+        .auth-password-toggle {
+          position: absolute;
+          right: 12px;
+          background: transparent;
+          border: none;
+          color: #8e9297;
+          cursor: pointer;
+          font-size: 18px;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.2s;
+          z-index: 2;
+        }
+
+        .auth-password-toggle:hover {
+          color: #7289da;
         }
 
         .auth-button {
