@@ -5,14 +5,6 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Live heartbeat counter for Render keep-alive visual indicator
-  const [heartbeat, setHeartbeat] = useState(0);
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      setHeartbeat(prev => (prev < 10 ? prev + 1 : 0));
-    }, 60000); // UI updates every minute to match server pulse
-    return () => clearInterval(interval);
-  }, []);
 
   // Filter rooms based on search
   const filteredRooms = rooms.filter(room => {

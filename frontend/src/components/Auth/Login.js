@@ -10,7 +10,6 @@ const Login = () => {
   const { login, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [stars, setStars] = useState([]);
-  const [showInstructions, setShowInstructions] = useState(false);
   
   useEffect(() => {
     // Redirect if already authenticated
