@@ -1290,7 +1290,9 @@ const keepRenderLive = () => {
     const publicUrl = process.env.RENDER_EXTERNAL_URL ||
       (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : `http://localhost:${PORT}`);
 
-    http.get(`${publicUrl}/health`, (res) => {
+    const client = publicUrl.startsWith('https') ? require('https') : http;
+
+    client.get(`${publicUrl}/health`, (res) => {
       res.on('data', () => { }); // Consume response
     }).on('error', (err) => {
       console.error('Keep-Render-Live heartbeat failed:', err.message);
