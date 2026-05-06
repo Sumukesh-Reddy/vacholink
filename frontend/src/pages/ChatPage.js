@@ -152,13 +152,38 @@ const ChatPage = () => {
     fetchMessages(room._id);
   };
 
-  const handleSendMessage = (content) => {
-    if (!socket || !selectedRoom || !content.trim()) return;
+  const handleSendMessage = async (content, attachment) => {
+    if (!socket || !selectedRoom || (!content?.trim() && !attachment)) return;
+
+    let mediaUrl = null;
+    let type = 'text';
+    let mediaName = null;
+
+    if (attachment) {
+      const formData = new FormData();
+      formData.append('file', attachment);
+
+      try {
+        const response = await axios.post(`${API_URL}/api/chat/upload`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        mediaUrl = response.data.url;
+        type = response.data.type;
+        mediaName = response.data.mediaName;
+      } catch (error) {
+        toast.error('Failed to upload attachment');
+        throw error; // Let the ChatWindow catch it
+      }
+    }
 
     socket.emit('send-message', {
       roomId: selectedRoom._id,
-      content: content.trim(),
-      type: 'text'
+      content: content?.trim() || '',
+      type,
+      mediaUrl,
+      mediaName
     });
   };
 

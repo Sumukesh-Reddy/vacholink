@@ -50,8 +50,6 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-// Handle preflight explicitly for all routes if needed, though cors() does this.
-app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -105,6 +103,23 @@ const upload = multer({
       return cb(null, true);
     }
     cb(new Error('Only image files are allowed!'));
+  }
+});
+
+const attachmentUpload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 20 * 1024 * 1024 // 20MB for attachments
+  },
+  fileFilter: function (req, file, cb) {
+    const filetypes = /jpeg|jpg|png|gif|mp4|webm|pdf/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Only images, videos, and PDFs are allowed!'));
   }
 });
 
@@ -185,9 +200,10 @@ const User = mongoose.model('User', userSchema);
 const messageSchema = new mongoose.Schema({
   sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   receiver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  content: { type: String, required: true },
-  type: { type: String, enum: ['text', 'image', 'file'], default: 'text' },
+  content: { type: String, required: false },
+  type: { type: String, enum: ['text', 'image', 'video', 'file'], default: 'text' },
   mediaUrl: { type: String },
+  mediaName: { type: String },
   read: { type: Boolean, default: false },
   readAt: { type: Date },
   roomId: { type: String, required: true },
@@ -884,6 +900,39 @@ app.post('/api/auth/logout', authenticateToken, async (req, res) => {
 
 // ========== CHAT ROUTES ==========
 
+// Upload Chat Attachment
+app.post('/api/chat/upload', authenticateToken, attachmentUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file provided' });
+    }
+
+    let resourceType = 'auto';
+    if (req.file.mimetype.startsWith('video/')) resourceType = 'video';
+    else if (req.file.mimetype.startsWith('image/')) resourceType = 'image';
+    else resourceType = 'raw';
+
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'chat_attachments',
+      resource_type: resourceType
+    });
+
+    let type = 'file';
+    if (resourceType === 'image') type = 'image';
+    if (resourceType === 'video') type = 'video';
+
+    res.json({
+      success: true,
+      url: result.secure_url,
+      type: type,
+      mediaName: req.file.originalname
+    });
+  } catch (error) {
+    console.error('Attachment upload error:', error);
+    res.status(500).json({ success: false, message: 'Failed to upload attachment' });
+  }
+});
+
 // Get or Create Direct Chat Room
 app.post('/api/chat/room', authenticateToken, async (req, res) => {
   try {
@@ -1131,13 +1180,14 @@ io.on('connection', (socket) => {
 
   socket.on('send-message', async (data) => {
     try {
-      const { roomId, content, type = 'text', mediaUrl } = data;
+      const { roomId, content, type = 'text', mediaUrl, mediaName } = data;
 
       const message = await Message.create({
         sender: socket.userId,
         content,
         type,
         mediaUrl,
+        mediaName,
         roomId
       });
 

@@ -1,12 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { toast } from 'react-toastify';
 import FriendProfileModal from '../Friends/FriendProfileModal';
 
 const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onBack, isMobile }) => {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [attachment, setAttachment] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [stars, setStars] = useState([]);
   const [showFriendProfile, setShowFriendProfile] = useState(false);
   
@@ -43,13 +47,33 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
     scrollToBottom();
   }, [messages]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (message.trim()) {
-      onSendMessage(message);
-      setMessage('');
-      setIsTyping(false);
-      onTyping(false);
+    if (message.trim() || attachment) {
+      setIsUploading(true);
+      try {
+        await onSendMessage(message, attachment);
+        setMessage('');
+        setAttachment(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        setIsTyping(false);
+        onTyping(false);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error('File size must be less than 20MB');
+        return;
+      }
+      setAttachment(file);
     }
   };
 
@@ -198,13 +222,32 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
                   
                   <div className="message-glow" />
                   
-                  {msg.type === 'image' && msg.mediaUrl ? (
+                  {msg.type === 'image' && msg.mediaUrl && (
                     <img 
                       src={msg.mediaUrl} 
                       alt="attachment" 
                       className="message-image"
                     />
-                  ) : (
+                  )}
+                  {msg.type === 'video' && msg.mediaUrl && (
+                    <video 
+                      controls 
+                      src={msg.mediaUrl} 
+                      className="message-video"
+                    />
+                  )}
+                  {msg.type === 'file' && msg.mediaUrl && (
+                    <a 
+                      href={msg.mediaUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="message-file-link"
+                    >
+                      <span className="file-icon">📄</span>
+                      <span className="file-name">{msg.mediaName || 'Attachment'}</span>
+                    </a>
+                  )}
+                  {msg.content && (
                     <span className="message-text">
                       {msg.content}
                     </span>
@@ -227,7 +270,38 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
       </div>
       
       <div className="message-input-container">
+        {attachment && (
+          <div className="attachment-preview">
+            <span className="attachment-name">{attachment.name}</span>
+            <button 
+              type="button" 
+              className="remove-attachment" 
+              onClick={() => {
+                setAttachment(null);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="message-form">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileSelect} 
+            style={{ display: 'none' }} 
+            accept="image/*,video/*,application/pdf"
+          />
+          <button 
+            type="button" 
+            className="attach-button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            title="Attach file"
+          >
+            <span className="attach-icon">📎</span>
+          </button>
           <textarea
             value={message}
             onChange={handleChange}
@@ -235,15 +309,16 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
             placeholder="Type a message..."
             className="message-textarea"
             rows="1"
+            disabled={isUploading}
           />
           <button 
             type="submit" 
             className="send-button"
-            disabled={!message.trim()}
+            disabled={(!message.trim() && !attachment) || isUploading}
           >
             
             <div className="send-button-glow" />
-            <span className="send-icon">➤</span>
+            <span className="send-icon">{isUploading ? '⌛' : '➤'}</span>
           </button>
         </form>
       </div>
@@ -606,6 +681,99 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           display: flex;
           gap: 12px;
           align-items: flex-end;
+          width: 100%;
+        }
+
+        .attachment-preview {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          background: #202225;
+          border-radius: 8px;
+          margin-bottom: 12px;
+          width: fit-content;
+          border: 1px solid #7289da;
+        }
+
+        .attachment-name {
+          color: #dcddde;
+          font-size: 14px;
+          max-width: 200px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .remove-attachment {
+          background: transparent;
+          border: none;
+          color: #ed4245;
+          cursor: pointer;
+          font-size: 14px;
+          padding: 0 4px;
+        }
+
+        .attach-button {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: #4f545c;
+          color: white;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          transition: all 0.2s;
+        }
+
+        .attach-button:not(:disabled):hover {
+          background: #7289da;
+        }
+
+        .attach-button:disabled {
+          cursor: not-allowed;
+          opacity: 0.5;
+        }
+
+        .attach-icon {
+          font-size: 20px;
+        }
+
+        .message-video {
+          max-width: 300px;
+          border-radius: 8px;
+          margin-bottom: 8px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .message-file-link {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 8px;
+          text-decoration: none;
+          color: #ffffff;
+          margin-bottom: 8px;
+          transition: background 0.2s;
+        }
+
+        .message-file-link:hover {
+          background: rgba(0, 0, 0, 0.3);
+        }
+
+        .file-icon {
+          font-size: 24px;
+        }
+
+        .file-name {
+          font-size: 14px;
+          font-weight: 500;
+          word-break: break-all;
         }
 
         .message-textarea {
