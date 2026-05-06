@@ -19,7 +19,7 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [stars, setStars] = useState([]);
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { register: registerAuth, loginWithGoogle, user, loading: authLoading } = useAuth();
 
   useEffect(() => {
     if (user && !authLoading) {
@@ -88,46 +88,31 @@ const Register = () => {
     }
 
     setLoading(true);
-    try {
-      const response = await axios.post(`${API_URL}/api/auth/register`, {
-        name,
-        email,
-        password
-      });
-      if (response.data.success) {
-        toast.success('Registration successful! Welcome to VachoLink.');
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        navigate('/');
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Registration failed');
-    } finally {
-      setLoading(false);
+    const result = await registerAuth(name, email, password);
+    setLoading(false);
+    
+    if (result.success) {
+      toast.success('Registration successful! Welcome to VachoLink.');
+      navigate('/');
+    } else {
+      toast.error(result.message || 'Registration failed');
     }
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
     setLoading(true);
-    try {
-      const response = await axios.post(`${API_URL}/api/auth/google`, {
-        credential: credentialResponse.credential
-      });
-      if (response.data.success) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        
-        if (response.data.needsProfileCompletion) {
-          navigate('/complete-profile');
-        } else {
-          toast.success('Login successful!');
-          navigate('/');
-        }
+    const result = await loginWithGoogle(credentialResponse.credential);
+    setLoading(false);
+    
+    if (result.success) {
+      if (result.needsProfileCompletion) {
+        navigate('/complete-profile');
+      } else {
+        toast.success('Login successful!');
+        navigate('/');
       }
-    } catch (error) {
-      toast.error('Google signup failed');
-    } finally {
-      setLoading(false);
+    } else {
+      toast.error(result.message || 'Google signup failed');
     }
   };
 

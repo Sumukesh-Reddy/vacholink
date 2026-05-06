@@ -116,6 +116,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginWithGoogle = async (credential) => {
+    try {
+      const response = await axios.post(`${API_URL}/api/auth/google`, { credential });
+      const { token, user, needsProfileCompletion } = response.data;
+      
+      localStorage.setItem('token', token);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      setToken(token);
+      setUser(user);
+      
+      return { success: true, needsProfileCompletion };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Google login failed'
+      };
+    }
+  };
+
   const updateProfile = async (updates) => {
     try {
       const response = await axios.put(`${API_URL}/api/auth/profile`, updates);
@@ -178,7 +197,8 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateProfile,
     uploadProfilePhoto,
-    changePassword
+    changePassword,
+    loginWithGoogle
   };
 
   return (

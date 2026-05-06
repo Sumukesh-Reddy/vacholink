@@ -69,7 +69,7 @@ const ForgotPassword = () => {
       });
       if (response.data.success) {
         toast.success(user ? 'Password reset successfully!' : 'Password reset successfully! You can now login.');
-        navigate(user ? '/profile' : '/login');
+        navigate(user ? '/' : '/login');
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Reset failed');

@@ -98,10 +98,6 @@ const ProfileCompletion = () => {
     }
   };
 
-  const handleSkip = () => {
-    navigate('/');
-    toast.info('You can update your profile later from settings');
-  };
 
   return (
     <div className="profile-completion-container">
@@ -212,15 +208,6 @@ const ProfileCompletion = () => {
               <span className="pc-button-text">
                 {loading ? 'Saving...' : 'Complete Setup'}
               </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSkip}
-              className="pc-skip-btn"
-            >
-              Skip for now
-            </button>
           </div>
         </form>
 
