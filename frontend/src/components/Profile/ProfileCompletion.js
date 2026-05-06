@@ -208,6 +208,7 @@ const ProfileCompletion = () => {
               <span className="pc-button-text">
                 {loading ? 'Saving...' : 'Complete Setup'}
               </span>
+            </button>
           </div>
         </form>
 
