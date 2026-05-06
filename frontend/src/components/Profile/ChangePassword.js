@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
 
-const ChangePassword = ({ onClose, onSuccess }) => {
+const ChangePassword = ({ onClose, onSuccess, onForgot }) => {
   const { changePassword } = useAuth();
   const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
@@ -115,7 +115,14 @@ const ChangePassword = ({ onClose, onSuccess }) => {
               </label>
               <button 
                 type="button"
-                onClick={() => { onClose(); navigate('/forgot-password'); }}
+                onClick={() => { 
+                  if (onForgot) {
+                    onForgot();
+                  } else {
+                    onClose(); 
+                    navigate('/forgot-password'); 
+                  }
+                }}
                 style={{ 
                   background: 'transparent', 
                   border: 'none', 

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import ChangePassword from './ChangePassword';
@@ -10,6 +11,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const fileInputRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isOpen && user) {
@@ -409,6 +411,11 @@ const ProfileModal = ({ isOpen, onClose }) => {
             onSuccess={() => {
               setShowChangePassword(false);
               toast.success('Password changed successfully!');
+            }}
+            onForgot={() => {
+              setShowChangePassword(false);
+              onClose();
+              navigate('/forgot-password');
             }}
           />
         )}
