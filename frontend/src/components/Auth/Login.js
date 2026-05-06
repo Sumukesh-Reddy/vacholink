@@ -15,7 +15,7 @@ const Login = () => {
   useEffect(() => {
     // Redirect if already authenticated
     if (user && !authLoading) {
-      navigate('/profile', { replace: true });
+      navigate('/', { replace: true });
     }
   }, [user, authLoading, navigate]);
 

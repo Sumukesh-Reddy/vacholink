@@ -99,7 +99,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   limits: {
     fileSize: 5 * 1024 * 1024
@@ -137,12 +137,12 @@ transporter.verify((error, success) => {
 // Resend Email Client
 const createResendClient = () => {
   console.log('📧 Creating Resend client...');
-  
+
   if (!process.env.RESEND_API_KEY) {
     console.error('❌ RESEND_API_KEY is not set in environment variables');
     return null;
   }
-  
+
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
     console.log('✅ Resend client created successfully');
@@ -167,10 +167,10 @@ const userSchema = new mongoose.Schema({
   lastSeen: { type: Date, default: Date.now },
   friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  accountType: { 
-    type: String, 
-    enum: ['user', 'admin'], 
-    default: 'user' 
+  accountType: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
   },
   isVerified: { type: Boolean, default: false },
   isGoogleUser: { type: Boolean, default: false },
@@ -183,7 +183,7 @@ const userSchema = new mongoose.Schema({
 });
 
 
-userSchema.pre('save', function() {
+userSchema.pre('save', function () {
   this.updatedAt = Date.now();
 });
 
@@ -239,14 +239,14 @@ const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    
+
     if (!token) {
       return res.status(401).json({ success: false, message: 'Access token required' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.userId).select('-password');
-    
+
     if (!user) {
       return res.status(401).json({ success: false, message: 'User not found' });
     }
@@ -273,19 +273,19 @@ app.post('/api/auth/google', async (req, res) => {
     console.log('🔐 Google auth request received from:', req.headers.origin);
 
     if (!credential) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Google credential is required' 
+      return res.status(400).json({
+        success: false,
+        message: 'Google credential is required'
       });
     }
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    
+
     if (!clientId) {
       console.error('❌ GOOGLE_CLIENT_ID environment variable is not set!');
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Server configuration error: Google Client ID missing' 
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error: Google Client ID missing'
       });
     }
 
@@ -301,8 +301,8 @@ app.post('/api/auth/google', async (req, res) => {
     console.log('✅ Google token verified for:', email);
 
     // Check if user exists
-    let user = await User.findOne({ 
-      $or: [{ googleId }, { email }] 
+    let user = await User.findOne({
+      $or: [{ googleId }, { email }]
     });
 
     let isNewUser = false;
@@ -340,18 +340,18 @@ app.post('/api/auth/google', async (req, res) => {
       // Existing user - update online status
       user.online = true;
       user.lastSeen = new Date();
-      
+
       if (!user.googleId) {
         user.googleId = googleId;
       }
-      
+
       await user.save();
     }
 
     // Generate token
     const token = jwt.sign(
-      { userId: user._id, email: user.email }, 
-      process.env.JWT_SECRET, 
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -366,13 +366,13 @@ app.post('/api/auth/google', async (req, res) => {
       message: isNewUser ? 'Google signup successful' : 'Google login successful',
       token,
       user: userResponse.toObject(),
-      isNewUser: isNewUser, 
+      isNewUser: isNewUser,
       needsProfileCompletion: userResponse.needsProfileCompletion || false
     });
   } catch (error) {
     console.error('❌ Google auth error:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: 'Google authentication failed',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -388,21 +388,21 @@ app.post('/api/auth/complete-profile', authenticateToken, async (req, res) => {
 
     const user = await User.findById(req.user._id);
     if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'User not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
       });
     }
 
     const updates = {};
-    
+
     // Update name if provided
     if (name && name.trim()) {
-      const existingName = await User.findOne({ 
+      const existingName = await User.findOne({
         name: name.trim(),
         _id: { $ne: user._id }
       });
-      
+
       if (existingName) {
         return res.status(400).json({
           success: false,
@@ -415,20 +415,20 @@ app.post('/api/auth/complete-profile', authenticateToken, async (req, res) => {
     // Update password if provided (REQUIRED for Google users)
     if (password && password.trim()) {
       if (password.length < 6) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Password must be at least 6 characters' 
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 6 characters'
         });
       }
-      
+
       const salt = await bcrypt.genSalt(10);
       updates.password = await bcrypt.hash(password, salt);
       updates.needsPasswordChange = false;
     } else if (user.isGoogleUser && !user.password) {
       // If Google user and no password provided
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Password is required for Google users' 
+      return res.status(400).json({
+        success: false,
+        message: 'Password is required for Google users'
       });
     }
 
@@ -451,9 +451,9 @@ app.post('/api/auth/complete-profile', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Profile completion error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to complete profile' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to complete profile'
     });
   }
 });
@@ -562,8 +562,8 @@ app.post('/api/auth/register', async (req, res) => {
     signupOtps.delete(email);
 
     const token = jwt.sign(
-      { userId: user._id, email: user.email }, 
-      process.env.JWT_SECRET, 
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -588,25 +588,25 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Please provide email and password' 
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and password'
       });
     }
 
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid credentials' 
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
       });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid credentials' 
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
       });
     }
 
@@ -615,8 +615,8 @@ app.post('/api/auth/login', async (req, res) => {
     await user.save();
 
     const token = jwt.sign(
-      { userId: user._id, email: user.email }, 
-      process.env.JWT_SECRET, 
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -631,9 +631,9 @@ app.post('/api/auth/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error during login' 
+    res.status(500).json({
+      success: false,
+      message: 'Server error during login'
     });
   }
 });
@@ -646,9 +646,9 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
       user: req.user
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to fetch profile' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch profile'
     });
   }
 });
@@ -657,14 +657,14 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
 app.put('/api/auth/profile', authenticateToken, async (req, res) => {
   try {
     const { name, bio } = req.body;
-    
+
     const updates = {};
     if (name) updates.name = name;
     if (bio !== undefined) updates.bio = bio;
-    
+
     const user = await User.findByIdAndUpdate(
-      req.user._id, 
-      updates, 
+      req.user._id,
+      updates,
       { new: true, runValidators: true }
     ).select('-password');
 
@@ -674,9 +674,9 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
       user
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to update profile' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update profile'
     });
   }
 });
@@ -685,9 +685,9 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
 app.post('/api/auth/profile/photo', authenticateToken, upload.single('profilePhoto'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No file uploaded' 
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
       });
     }
 
@@ -721,9 +721,9 @@ app.post('/api/auth/profile/photo', authenticateToken, upload.single('profilePho
     });
   } catch (error) {
     console.error('Profile photo upload error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to upload profile photo' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload profile photo'
     });
   }
 });
@@ -735,21 +735,21 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
     if (!newPassword) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'New password is required' 
+      return res.status(400).json({
+        success: false,
+        message: 'New password is required'
       });
     }
 
     if (newPassword.length < 6) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'New password must be at least 6 characters' 
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters'
       });
     }
 
     const user = await User.findById(req.user._id).select('+password');
-    
+
     // If user is a Google user AND has no password yet
     if (user.isGoogleUser && !user.password) {
       // Allow setting first password without current password check
@@ -757,26 +757,26 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
       user.password = await bcrypt.hash(newPassword, salt);
       user.needsPasswordChange = false;
       await user.save();
-      
+
       return res.json({
         success: true,
         message: 'Password set successfully'
       });
     }
-    
+
     // Regular users must provide current password
     if (!currentPassword) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Current password is required' 
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is required'
       });
     }
 
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Current password is incorrect' 
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect'
       });
     }
 
@@ -791,9 +791,9 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Change password error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to change password' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password'
     });
   }
 });
@@ -847,8 +847,8 @@ app.post('/api/auth/reset-password', async (req, res) => {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
-    const user = await User.findOne({ 
-      email, 
+    const user = await User.findOne({
+      email,
       resetToken: otp,
       resetTokenExpires: { $gt: Date.now() }
     });
@@ -883,9 +883,9 @@ app.post('/api/auth/logout', authenticateToken, async (req, res) => {
       message: 'Logged out successfully'
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Logout failed' 
+    res.status(500).json({
+      success: false,
+      message: 'Logout failed'
     });
   }
 });
@@ -898,25 +898,25 @@ app.post('/api/chat/room', authenticateToken, async (req, res) => {
     const { participantId } = req.body;
 
     if (!participantId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Participant ID is required' 
+      return res.status(400).json({
+        success: false,
+        message: 'Participant ID is required'
       });
     }
 
     const participant = await User.findById(participantId);
     if (!participant) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Participant not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Participant not found'
       });
     }
 
     let room = await Room.findOne({
       isGroup: false,
-      participants: { 
+      participants: {
         $all: [req.user._id, participantId],
-        $size: 2 
+        $size: 2
       }
     }).populate('participants', 'name email profilePhoto online lastSeen');
 
@@ -925,7 +925,7 @@ app.post('/api/chat/room', authenticateToken, async (req, res) => {
         participants: [req.user._id, participantId],
         isGroup: false
       });
-      
+
       room = await Room.findById(room._id)
         .populate('participants', 'name email profilePhoto online lastSeen');
     }
@@ -936,9 +936,9 @@ app.post('/api/chat/room', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Create room error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to create chat room' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create chat room'
     });
   }
 });
@@ -960,9 +960,9 @@ app.get('/api/chat/rooms', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Get rooms error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to fetch chat rooms' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch chat rooms'
     });
   }
 });
@@ -1004,9 +1004,9 @@ app.get('/api/chat/messages/:roomId', authenticateToken, async (req, res) => {
     });
 
     if (!room) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Access denied' 
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
       });
     }
 
@@ -1040,9 +1040,9 @@ app.get('/api/chat/messages/:roomId', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Get messages error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to fetch messages' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch messages'
     });
   }
 });
@@ -1076,9 +1076,9 @@ app.get('/api/users/search', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Search users error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to search users' 
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search users'
     });
   }
 });
@@ -1096,14 +1096,14 @@ const io = new Server(server, {
 io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth.token;
-    
+
     if (!token) {
       return next(new Error('Authentication error'));
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.userId);
-    
+
     if (!user) {
       return next(new Error('User not found'));
     }
@@ -1120,9 +1120,9 @@ const onlineUsers = new Map();
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.userId);
-  
+
   onlineUsers.set(socket.userId.toString(), socket.id);
-  
+
   User.findByIdAndUpdate(socket.userId, {
     online: true,
     lastSeen: new Date()
@@ -1140,7 +1140,7 @@ io.on('connection', (socket) => {
   socket.on('send-message', async (data) => {
     try {
       const { roomId, content, type = 'text', mediaUrl } = data;
-      
+
       const message = await Message.create({
         sender: socket.userId,
         content,
@@ -1158,7 +1158,7 @@ io.on('connection', (socket) => {
       });
 
       io.to(roomId).emit('receive-message', populatedMessage);
-      
+
       socket.emit('message-sent', populatedMessage);
 
       const room = await Room.findById(roomId);
@@ -1190,7 +1190,7 @@ io.on('connection', (socket) => {
   socket.on('mark-read', async (data) => {
     try {
       const { messageId } = data;
-      
+
       await Message.findByIdAndUpdate(messageId, {
         read: true,
         readAt: new Date()
@@ -1209,9 +1209,9 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.userId);
-    
+
     onlineUsers.delete(socket.userId.toString());
-    
+
     await User.findByIdAndUpdate(socket.userId, {
       online: false,
       lastSeen: new Date()
@@ -1223,9 +1223,9 @@ io.on('connection', (socket) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ 
-    success: true, 
-    message: 'Server is running', 
+  res.json({
+    success: true,
+    message: 'Server is running',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
@@ -1242,19 +1242,19 @@ const keepRenderLive = () => {
       i = 0;
       console.log('Keep-Alive Heartbeat Reset');
     }
-    
+
     // Self-ping logic to prevent Render spin-down
     // Detect public URL from Render environment variables or fallback to localhost
-    const publicUrl = process.env.RENDER_EXTERNAL_URL || 
-                     (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : `http://localhost:${PORT}`);
-    
+    const publicUrl = process.env.RENDER_EXTERNAL_URL ||
+      (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : `http://localhost:${PORT}`);
+
     http.get(`${publicUrl}/health`, (res) => {
-      res.on('data', () => {}); // Consume response
+      res.on('data', () => { }); // Consume response
     }).on('error', (err) => {
       console.error('Keep-Render-Live heartbeat failed:', err.message);
     });
-  }, 5 * 60 * 1000); // Every 5 minutes
-  
+  }, 1 * 60 * 1000); // Every 1 minutes
+
   return interval;
 };
 
@@ -1265,7 +1265,7 @@ server.listen(PORT, () => {
   console.log(`📡 WebSocket server ready`);
   console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 Allowed origins: ${allowedOrigins.join(', ') || 'None'}`);
-  
+
   // Start the keep-alive loop
   keepRenderLive();
 });

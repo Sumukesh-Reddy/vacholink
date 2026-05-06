@@ -23,7 +23,7 @@ const Register = () => {
 
   useEffect(() => {
     if (user && !authLoading) {
-      navigate('/profile', { replace: true });
+      navigate('/', { replace: true });
     }
   }, [user, authLoading, navigate]);
 
