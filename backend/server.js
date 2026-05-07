@@ -123,42 +123,12 @@ const attachmentUpload = multer({
   }
 });
 
-// Nodemailer Transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
-
-// Verify transporter
-transporter.verify((error, success) => {
-  if (error) {
-    console.warn('📧 Nodemailer verification failed:', error.message);
-  } else {
-    console.log('📧 Nodemailer is ready to send emails');
-  }
-});
-
-// Resend Email Client
-const createResendClient = () => {
-  console.log('📧 Creating Resend client...');
-
-  if (!process.env.RESEND_API_KEY) {
-    console.error('❌ RESEND_API_KEY is not set in environment variables');
-    return null;
-  }
-
-  try {
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    console.log('✅ Resend client created successfully');
-    return resend;
-  } catch (error) {
-    console.error('❌ Failed to create Resend client:', error.message);
-    return null;
-  }
-};
+// Resend Email Client (works on Render - uses HTTP, not blocked SMTP)
+if (!process.env.RESEND_API_KEY) {
+  console.error('❌ RESEND_API_KEY is not set in environment variables');
+}
+const resend = new Resend(process.env.RESEND_API_KEY);
+console.log('📧 Resend client initialized');
 
 // ========== MODELS ==========
 
@@ -484,8 +454,8 @@ app.post('/api/auth/send-otp', async (req, res) => {
 
     signupOtps.set(email, { otp, expires });
 
-    const mailOptions = {
-      from: `"VachoLink" <${process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: 'VachoLink <onboarding@resend.dev>',
       to: email,
       subject: 'VachoLink - Verify Your Email',
       html: `
@@ -499,9 +469,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
           <p>If you didn't request this, please ignore this email.</p>
         </div>
       `
-    };
-
-    await transporter.sendMail(mailOptions);
+    });
     console.log(`📧 OTP sent to ${email}`);
 
     res.json({ success: true, message: 'OTP sent successfully to your email' });
@@ -822,8 +790,8 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     user.resetTokenExpires = Date.now() + 15 * 60 * 1000; // 15 mins
     await user.save();
 
-    const mailOptions = {
-      from: `"VachoLink" <${process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: 'VachoLink <onboarding@resend.dev>',
       to: email,
       subject: 'VachoLink - Password Reset OTP',
       html: `
@@ -837,9 +805,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
           <p>If you didn't request this, please ignore this email.</p>
         </div>
       `
-    };
-
-    await transporter.sendMail(mailOptions);
+    });
     res.json({ success: true, message: 'Password reset OTP sent to your email' });
   } catch (error) {
     console.error('Forgot password error:', error);
