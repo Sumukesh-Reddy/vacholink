@@ -1148,6 +1148,12 @@ io.on('connection', (socket) => {
     try {
       const { roomId, content, type = 'text', mediaUrl, mediaName } = data;
 
+      // Validate room exists before doing anything
+      const room = await Room.findById(roomId);
+      if (!room) {
+        return socket.emit('message-error', { error: 'Room not found' });
+      }
+
       const message = await Message.create({
         sender: socket.userId,
         content,
@@ -1160,16 +1166,15 @@ io.on('connection', (socket) => {
       const populatedMessage = await Message.findById(message._id)
         .populate('sender', 'name profilePhoto');
 
-      await Room.findByIdAndUpdate(roomId, {
-        lastMessage: message._id,
-        updatedAt: new Date()
-      });
+      // Update room's last message (reuse already-fetched room)
+      room.lastMessage = message._id;
+      room.updatedAt = new Date();
+      await room.save();
 
       io.to(roomId).emit('receive-message', populatedMessage);
-
       socket.emit('message-sent', populatedMessage);
 
-      const room = await Room.findById(roomId);
+      // Notify other participants using the room we already have
       room.participants.forEach(participantId => {
         if (participantId.toString() !== socket.userId.toString()) {
           io.to(`user:${participantId}`).emit('new-message-notification', {
