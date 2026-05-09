@@ -17,6 +17,7 @@ const ChatPage = () => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showUserList, setShowUserList] = useState(false);
+  const [typingUser, setTypingUser] = useState(null);
   const [stars, setStars] = useState([]);
   const [comets, setComets] = useState([]);
   const [isMobile, setIsMobile] = useState(false);
@@ -131,10 +132,22 @@ const ChatPage = () => {
       ));
     };
 
+    const handleUserTyping = ({ userId, userName, isTyping }) => {
+      if (!selectedRoom) return;
+      // Only show typing for messages from the other participant in the current room
+      if (isTyping) {
+        setTypingUser(userName);
+      } else {
+        setTypingUser(null);
+      }
+    };
+
     socket.on('receive-message', handleIncomingMessage);
+    socket.on('user-typing', handleUserTyping);
 
     return () => {
       socket.off('receive-message', handleIncomingMessage);
+      socket.off('user-typing', handleUserTyping);
     };
   }, [socket, selectedRoom]);
 
@@ -437,6 +450,7 @@ const ChatPage = () => {
           onDeleteRoom={() => handleDeleteRoom(selectedRoom?._id)}
           onBack={handleBackToChats}
           isMobile={isMobile}
+          typingUser={typingUser}
         />
       ) : (
         // Show welcome screen on desktop when no chat is selected

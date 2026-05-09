@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import FriendProfileModal from '../Friends/FriendProfileModal';
 
-const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onBack, isMobile }) => {
+const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onBack, isMobile, typingUser }) => {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -267,6 +267,22 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           );
         })}
         <div ref={messagesEndRef} className="messages-end" />
+
+        {/* Typing indicator */}
+        {typingUser && (
+          <div className="typing-indicator-wrapper">
+            <img
+              src={otherParticipant?.profilePhoto || `https://ui-avatars.com/api/?name=${otherParticipant?.name}&background=7289da&color=fff`}
+              alt={otherParticipant?.name}
+              className="message-avatar"
+            />
+            <div className="typing-bubble">
+              <div className="typing-dot" />
+              <div className="typing-dot" />
+              <div className="typing-dot" />
+            </div>
+          </div>
+        )}
       </div>
       
       <div className="message-input-container">
@@ -597,8 +613,8 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           word-wrap: break-word;
           background: #40444b;
           color: #dcddde;
-          border-bottom-right-radius: 4px;
-          border-bottom-left-radius: 18px;
+          border-bottom-left-radius: 4px;
+          border-bottom-right-radius: 18px;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
           position: relative;
           overflow: hidden;
@@ -607,8 +623,8 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
         .own-message .message-bubble {
           background: #7289da;
           color: white;
-          border-bottom-right-radius: 18px;
-          border-bottom-left-radius: 4px;
+          border-bottom-left-radius: 18px;
+          border-bottom-right-radius: 4px;
         }
 
         .message-glow {
@@ -666,6 +682,44 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
 
         .messages-end {
           height: 1px;
+        }
+
+        /* Typing indicator */
+        .typing-indicator-wrapper {
+          display: flex;
+          gap: 12px;
+          align-items: flex-end;
+          align-self: flex-start;
+          margin-top: 4px;
+        }
+
+        .typing-bubble {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          padding: 12px 16px;
+          background: #40444b;
+          border-radius: 18px;
+          border-bottom-left-radius: 4px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          min-width: 56px;
+        }
+
+        .typing-dot {
+          width: 8px;
+          height: 8px;
+          background: #8e9297;
+          border-radius: 50%;
+          animation: typingBounce 1.2s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingBounce {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+          30% { transform: translateY(-6px); opacity: 1; }
         }
 
         /* Input area */
