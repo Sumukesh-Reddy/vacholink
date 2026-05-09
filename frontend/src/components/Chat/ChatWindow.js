@@ -70,25 +70,21 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
   const otherParticipant = room.participants?.filter(p => p._id !== user?._id)[0] || room.participants?.[0];
 
   useEffect(() => {
-    // Generate responsive stars
-    const generateStars = () => {
-      const starCount = isMobile ? 200 : 500;
-      const newStars = [];
-      for (let i = 0; i < starCount; i++) {
-        newStars.push({
-          id: i,
-          x: Math.random() * 100,
-          y: Math.random() * 100,
-          size: Math.random() * (isMobile ? 1.5 : 2) + 1,
-          opacity: Math.random() * 0.5 + 0.2,
-          delay: Math.random() * 3,
-          duration: Math.random() * 2 + 1
-        });
-      }
-      setStars(newStars);
-    };
-
-    generateStars();
+    // Generate responsive stars only once or when isMobile changes
+    const starCount = isMobile ? 200 : 500;
+    const newStars = [];
+    for (let i = 0; i < starCount; i++) {
+      newStars.push({
+        id: i,
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        size: Math.random() * (isMobile ? 1.5 : 2) + 1,
+        opacity: Math.random() * 0.5 + 0.2,
+        delay: Math.random() * 3,
+        duration: Math.random() * 2 + 1
+      });
+    }
+    setStars(newStars);
   }, [isMobile]);
 
   const scrollToBottom = () => {
@@ -162,6 +158,11 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
       e.preventDefault();
       handleSubmit(e);
     }
+  };
+
+  const handleFocus = () => {
+    // Small delay to allow keyboard to start opening
+    setTimeout(scrollToBottom, 300);
   };
 
   // Close emoji picker on outside click
@@ -505,6 +506,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
             value={message}
             onChange={handleChange}
             onKeyPress={handleKeyPress}
+            onFocus={handleFocus}
             placeholder="Type a message..."
             className="message-textarea"
             rows="1"

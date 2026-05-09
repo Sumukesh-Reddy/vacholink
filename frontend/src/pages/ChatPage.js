@@ -518,11 +518,10 @@ const ChatPage = () => {
         .chat-container {
           display: flex;
           height: calc(100vh - 64px);
-          height: calc(100dvh - 64px);
           background: #0a0a0a;
           position: relative;
           overflow: hidden;
-          overscroll-behavior: contain;
+          width: 100%;
         }
 
         .chat-bg-gradient {
@@ -731,13 +730,10 @@ const ChatPage = () => {
         @media (max-width: 768px) {
           .chat-container {
             height: calc(100vh - 64px);
-            height: calc(100dvh - 64px);
             flex-direction: column;
-            position: fixed;
-            top: 64px;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            position: relative;
+            top: 0;
+            flex: 1;
           }
 
           .nebula-1, .nebula-2 {
@@ -753,24 +749,18 @@ const ChatPage = () => {
         @media (max-width: 768px) {
           .chat-sidebar {
             z-index: 30;
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            position: relative;
             width: 100%;
             height: 100%;
+            flex: 1;
           }
 
           .chat-window-container {
             z-index: 20;
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            position: relative;
             width: 100%;
             height: 100%;
+            flex: 1;
           }
         }
 
