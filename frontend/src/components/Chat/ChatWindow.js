@@ -3,12 +3,49 @@ import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import FriendProfileModal from '../Friends/FriendProfileModal';
 
-const QUICK_REACTIONS = ['👍','❤️','😂','😮','😢','😡'];
+const QUICK_REACTIONS = ['👍', '💞', '😂', '😮', '😢', '😡', '🔥', '🤭', '🐼'];
 const EMOJIS = [
-  '😀','😂','😍','🥰','😎','🤔','😴','😡','😢','😱','🥳','😇',
-  '👍','👎','❤️','🔥','🎉','💯','👏','🙏','💪','✨','🌟','🎯',
-  '😅','🤣','😉','😊','😋','😝','🤑','🤗','😒','😞','🙂','😏',
-  '🐶','🐱','🐻','🦊','🐸','🌈','⭐','🌙','🍕','🎂','🚀','💎',
+  // Smileys & Emotion
+  '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊',
+  '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '🥲', '😋', '😛', '😜',
+  '🤪', '😝', '🤑', '🤗', '🤭', '🫢', '🤫', '🤔', '🤐', '🤨', '😐', '😑',
+  '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷',
+  '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '😵', '🤯', '🤠', '🥳', '🥸',
+  '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺',
+  '🥹', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞',
+  '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️',
+  // Gestures & People
+  '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🫰', '🤟',
+  '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '🫵', '👍', '👎', '✊',
+  '👊', '🤛', '🤜', '👏', '🙌', '🫶', '🤲', '🤝', '🙏', '✍️', '💅', '🤳',
+  '💪', '🦾', '🦵', '🦶', '👂', '🦻', '👃', '🧠', '👁️', '👀', '🫦', '🫀',
+  // Animals & Nature
+  '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮',
+  '🐷', '🐸', '🐵', '🙈', '🙉', '🙊', '🐔', '🐧', '🐦', '🦆', '🦅', '🦉',
+  '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🦋', '🐌', '🐞', '🐜', '🦗', '🐢',
+  '🐍', '🦎', '🦑', '🐙', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈',
+  '🐊', '🦧', '🦍', '🦥', '🦦', '🦨', '🦡', '🦫', '🦦', '🐿️', '🦔', '🐾',
+  // Food & Drink
+  '🍎', '🍊', '🍋', '🍇', '🍓', '🫐', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅',
+  '🫒', '🥑', '🍆', '🥔', '🌽', '🌶️', '🥦', '🥬', '🥒', '🧄', '🧅', '🍄',
+  '🍕', '🍔', '🌮', '🌯', '🥪', '🥚', '🍳', '🧇', '🥞', '🧆', '🍗', '🍖',
+  '🌭', '🍟', '🧀', '🍱', '🍣', '🍜', '🍝', '🍛', '🍦', '🍧', '🍨', '🍩',
+  '🍪', '🎂', '🍰', '🧁', '🍫', '🍬', '🍭', '☕', '🍵', '🧃', '🥤', '🧋',
+  '🍺', '🍻', '🥂', '🍷', '🥃', '🍸', '🍹', '🧉', '🍾', '🧊', '🥄', '🍴',
+  // Travel & Places
+  '🚀', '✈️', '🚂', '🚗', '🚕', '🚙', '🛻', '🚌', '🏎️', '🛵', '🚲', '🛸',
+  '🏠', '🏡', '🏢', '🏰', '🏯', '🗼', '🗽', '⛪', '🌁', '🌉', '🌃', '🌆',
+  '🌇', '🌄', '🏔️', '⛰️', '🌋', '🏕️', '🏖️', '🏜️', '🏝️', '🌊', '🌌', '🌠',
+  // Activities & Sports
+  '⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱', '🏓', '🏸', '⛳', '🥅',
+  '🎯', '🎮', '🎲', '🎭', '🎨', '🎬', '🎤', '🎧', '🎸', '🎹', '🎺', '🎻',
+  '🎁', '🎀', '🎊', '🎉', '🎆', '🎇', '🧨', '🪅', '🪆', '🎋', '🎍', '🎎',
+  // Objects & Symbols
+  '💡', '🔦', '🕯️', '💰', '💳', '💎', '🔑', '🗝️', '🔒', '🔓', '📱', '💻',
+  '⌚', '📷', '📹', '📺', '📻', '🧭', '⏰', '⌛', '🔭', '🔬', '📡', '🧲',
+  '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕',
+  '💞', '💓', '💗', '💖', '💘', '💝', '💟', '✨', '⭐', '🌟', '💫', '☀️',
+  '🌈', '❄️', '⛄', '🌙', '🌛', '🌜', '🌝', '🌚', '🌞', '🪐', '🌍', '🌎',
 ];
 
 const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onBack, isMobile, typingUser, onEditMessage, onReactMessage }) => {
@@ -27,7 +64,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
   const emojiPickerRef = useRef(null);
   const [stars, setStars] = useState([]);
   const [showFriendProfile, setShowFriendProfile] = useState(false);
-  
+
   // Robust check for the other person in a 1v1 chat
   const otherParticipant = room.participants?.filter(p => p._id !== user?._id)[0] || room.participants?.[0];
 
@@ -49,7 +86,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
       }
       setStars(newStars);
     };
-    
+
     generateStars();
   }, [isMobile]);
 
@@ -93,7 +130,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
 
   const handleChange = (e) => {
     setMessage(e.target.value);
-    
+
     if (!isTyping && e.target.value.trim()) {
       setIsTyping(true);
       onTyping(true);
@@ -144,10 +181,10 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
     const date = new Date(timestamp);
     return date.toLocaleString(); // or a custom formatter
   }
-  
+
   return (
     <div className="chat-window-container">
-      
+
       <div className="chat-stars-bg">
         {stars.map(star => (
           <div
@@ -166,13 +203,13 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
         ))}
       </div>
 
-      
+
       <div className="chat-bg-overlay" />
 
       <div className="chat-header">
         {/* Mobile Back Button */}
         {isMobile && onBack && (
-          <button 
+          <button
             className="mobile-back-button"
             onClick={(e) => {
               e.preventDefault();
@@ -184,10 +221,10 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
             ←
           </button>
         )}
-        
-        
-        <div 
-          className="header-user" 
+
+
+        <div
+          className="header-user"
           onClick={() => setShowFriendProfile(true)}
           style={{ cursor: 'pointer' }}
         >
@@ -208,12 +245,12 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
               <span className="status-text">
                 {otherParticipant?.online ? 'Online' : `Last seen ${formatLastSeen(otherParticipant?.lastSeen)}`}
               </span>
-              
+
             </div>
           </div>
         </div>
         <div className="header-actions">
-          <button 
+          <button
             className="delete-button"
             onClick={onDeleteRoom}
           >
@@ -221,9 +258,9 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           </button>
         </div>
       </div>
-      
+
       <div className="messages-container">
-        
+
         <div className="messages-particles">
           {Array.from({ length: isMobile ? 8 : 15 }).map((_, i) => (
             <div
@@ -368,14 +405,14 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           </div>
         )}
       </div>
-      
+
       <div className="message-input-container">
         {attachment && (
           <div className="attachment-preview">
             <span className="attachment-name">{attachment.name}</span>
-            <button 
-              type="button" 
-              className="remove-attachment" 
+            <button
+              type="button"
+              className="remove-attachment"
               onClick={() => {
                 setAttachment(null);
                 if (fileInputRef.current) fileInputRef.current.value = '';
@@ -448,9 +485,9 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
       </div>
 
       {showFriendProfile && (
-        <FriendProfileModal 
-          user={otherParticipant} 
-          onClose={() => setShowFriendProfile(false)} 
+        <FriendProfileModal
+          user={otherParticipant}
+          onClose={() => setShowFriendProfile(false)}
         />
       )}
 
