@@ -179,6 +179,12 @@ const messageSchema = new mongoose.Schema({
   roomId: { type: String, required: true },
   deleted: { type: Boolean, default: false },
   deletedAt: { type: Date },
+  editedAt: { type: Date },
+  reactions: [{
+    emoji: { type: String, required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    userName: { type: String }
+  }],
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -1188,6 +1194,56 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('Send message error:', error);
       socket.emit('message-error', { error: 'Failed to send message' });
+    }
+  });
+
+  // Edit a message
+  socket.on('edit-message', async (data) => {
+    try {
+      const { messageId, content } = data;
+      const message = await Message.findById(messageId);
+      if (!message) return socket.emit('message-error', { error: 'Message not found' });
+      if (message.sender.toString() !== socket.userId.toString()) {
+        return socket.emit('message-error', { error: 'Not authorized to edit this message' });
+      }
+      message.content = content;
+      message.editedAt = new Date();
+      await message.save();
+      const updated = await Message.findById(messageId).populate('sender', 'name profilePhoto');
+      io.to(message.roomId).emit('message-edited', updated);
+    } catch (error) {
+      console.error('Edit message error:', error);
+      socket.emit('message-error', { error: 'Failed to edit message' });
+    }
+  });
+
+  // React to a message
+  socket.on('react-message', async (data) => {
+    try {
+      const { messageId, emoji } = data;
+      const message = await Message.findById(messageId);
+      if (!message) return socket.emit('message-error', { error: 'Message not found' });
+
+      // Toggle: remove if same user reacted with same emoji, else add/replace
+      const existingIdx = message.reactions.findIndex(
+        r => r.userId.toString() === socket.userId.toString() && r.emoji === emoji
+      );
+      if (existingIdx !== -1) {
+        // Remove reaction (toggle off)
+        message.reactions.splice(existingIdx, 1);
+      } else {
+        // Remove any previous reaction by this user on this message, then add new
+        message.reactions = message.reactions.filter(
+          r => r.userId.toString() !== socket.userId.toString()
+        );
+        message.reactions.push({ emoji, userId: socket.userId, userName: socket.user.name });
+      }
+      await message.save();
+      const updated = await Message.findById(messageId).populate('sender', 'name profilePhoto');
+      io.to(message.roomId).emit('message-reacted', updated);
+    } catch (error) {
+      console.error('React message error:', error);
+      socket.emit('message-error', { error: 'Failed to react to message' });
     }
   });
 

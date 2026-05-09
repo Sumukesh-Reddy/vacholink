@@ -26,7 +26,7 @@ const ChatPage = () => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
@@ -89,11 +89,11 @@ const ChatPage = () => {
     try {
       const response = await axios.get(`${API_URL}/api/chat/rooms`);
       setRooms(response.data.rooms);
-      
+
       if (!isMobile && response.data.rooms.length > 0 && !selectedRoom) {
         setSelectedRoom(response.data.rooms[0]);
         fetchMessages(response.data.rooms[0]._id);
-    }    
+      }
     } catch (error) {
       toast.error('Failed to load chat rooms');
     } finally {
@@ -118,8 +118,8 @@ const ChatPage = () => {
     if (!socket) return;
 
     const handleIncomingMessage = (message) => {
-      setRooms(prevRooms => prevRooms.map(room => 
-        room._id === message.roomId 
+      setRooms(prevRooms => prevRooms.map(room =>
+        room._id === message.roomId
           ? { ...room, lastMessage: message, updatedAt: new Date().toISOString() }
           : room
       ));
@@ -207,7 +207,7 @@ const ChatPage = () => {
       setSelectedRoom(newRoom);
       setShowUserList(false);
       fetchMessages(newRoom._id);
-      
+
       toast.success('Chat started!');
     } catch (error) {
       toast.error('Failed to start chat');
@@ -248,7 +248,7 @@ const ChatPage = () => {
             <div className="spinner-ring"></div>
           </div>
           <div className="loading-text">
-            <span>Synchronizing Nexus...</span>
+            <span>Synchronizing  Chat...</span>
             <div className="loading-dots">
               <div className="dot"></div>
               <div className="dot"></div>
@@ -342,10 +342,10 @@ const ChatPage = () => {
 
   return (
     <div className="chat-container">
-      
+
       <div className="chat-bg-gradient" />
-      
-      
+
+
       <div className="chat-stars">
         {stars.map(star => (
           <div
@@ -364,8 +364,8 @@ const ChatPage = () => {
           />
         ))}
       </div>
-      
-      
+
+
       <div className="chat-comets">
         {comets.map(comet => (
           <div
@@ -383,12 +383,12 @@ const ChatPage = () => {
           />
         ))}
       </div>
-      
-      
+
+
       <div className="chat-nebula nebula-1" />
       <div className="chat-nebula nebula-2" />
 
-      
+
       <div className="chat-particles">
         {Array.from({ length: isMobile ? 8 : 15 }).map((_, i) => (
           <div
@@ -403,8 +403,8 @@ const ChatPage = () => {
           />
         ))}
       </div>
-      
-      
+
+
       {/* Desktop: Always show sidebar */}
       {!isMobile && (
         <ChatSidebar
@@ -415,7 +415,7 @@ const ChatPage = () => {
           onlineUsers={onlineUsers}
         />
       )}
-      
+
       {/* Mobile: Show sidebar when no chat is selected */}
       {isMobile && !selectedRoom && (
         <ChatSidebar
@@ -426,7 +426,7 @@ const ChatPage = () => {
           onlineUsers={onlineUsers}
         />
       )}
-      
+
       {/* Show chat window when a room is selected */}
       {selectedRoom ? (
         <ChatWindow
@@ -443,19 +443,19 @@ const ChatPage = () => {
         !isMobile && (
           <div className="chat-welcome">
             <div className="welcome-content">
-              
+
               <div className="welcome-logo">
                 ꍡ
               </div>
-              
+
               <h2 className="welcome-title">Welcome to VachoLink!</h2>
-              
+
               <p className="welcome-text">
                 Connect with friends and colleagues in real-time.<br />
                 Start meaningful conversations that matter.
               </p>
-              
-              <button 
+
+              <button
                 className="welcome-button"
                 onClick={() => setShowUserList(true)}
               >
@@ -464,7 +464,7 @@ const ChatPage = () => {
                   Start New Chat
                 </span>
               </button>
-              
+
               <div className="welcome-stats">
                 <div className="stat-item">
                   <div className="stat-number">{onlineUsers.size}</div>
