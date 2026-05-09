@@ -59,6 +59,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
   const [editContent, setEditContent] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const emojiPickerRef = useRef(null);
@@ -91,7 +92,13 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
   }, [isMobile]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   };
 
   useEffect(() => {
@@ -100,17 +107,27 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (message.trim() || attachment) {
+    const currentMessage = message.trim();
+    if (currentMessage || attachment) {
+      // Clear input immediately for better UX
+      setMessage('');
+      setAttachment(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      
       setIsUploading(true);
       try {
-        await onSendMessage(message, attachment);
-        setMessage('');
-        setAttachment(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        await onSendMessage(currentMessage, attachment);
         setIsTyping(false);
         onTyping(false);
+        
+        // Refocus textarea after send to keep keyboard open on mobile
+        setTimeout(() => {
+          textareaRef.current?.focus();
+        }, 10);
       } catch (error) {
+        // If it failed, we might want to restore the message, but for now just log
         console.error(error);
+        setMessage(currentMessage); // Restore message on failure
       } finally {
         setIsUploading(false);
       }
@@ -243,7 +260,10 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
         <div
           className="header-user"
           onClick={() => setShowFriendProfile(true)}
-          style={{ cursor: 'pointer' }}
+          style={{ 
+            cursor: 'pointer',
+            marginLeft: isMobile && onBack ? '40px' : '0'
+          }}
         >
           <div className="user-avatar-container">
             <img
@@ -276,7 +296,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
         </div>
       </div>
 
-      <div className="messages-container">
+      <div className="messages-container" ref={messagesContainerRef}>
 
         <div className="messages-particles">
           {Array.from({ length: isMobile ? 8 : 15 }).map((_, i) => (
@@ -488,7 +508,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
             placeholder="Type a message..."
             className="message-textarea"
             rows="1"
-            disabled={isUploading}
+            disabled={isUploading && attachment} // Only disable if uploading a file, otherwise keep enabled for typing
           />
           <button
             type="submit"
@@ -592,7 +612,6 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           gap: 16px;
           flex: 1;
           min-width: 0;
-          margin-left: ${isMobile && onBack ? '40px' : '0'};
         }
 
         .user-avatar-container {

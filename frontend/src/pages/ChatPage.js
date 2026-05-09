@@ -517,10 +517,12 @@ const ChatPage = () => {
         /* Base styles */
         .chat-container {
           display: flex;
-          height: calc(100vh - 48px);
+          height: calc(100vh - 64px);
+          height: calc(100dvh - 64px);
           background: #0a0a0a;
           position: relative;
           overflow: hidden;
+          overscroll-behavior: contain;
         }
 
         .chat-bg-gradient {
@@ -728,8 +730,14 @@ const ChatPage = () => {
         /* Mobile specific styles */
         @media (max-width: 768px) {
           .chat-container {
-            height: calc(100vh - 48px);
+            height: calc(100vh - 64px);
+            height: calc(100dvh - 64px);
             flex-direction: column;
+            position: fixed;
+            top: 64px;
+            left: 0;
+            right: 0;
+            bottom: 0;
           }
 
           .nebula-1, .nebula-2 {
