@@ -3,14 +3,28 @@ import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-toastify';
 import FriendProfileModal from '../Friends/FriendProfileModal';
 
-const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onBack, isMobile, typingUser }) => {
+const QUICK_REACTIONS = ['👍','❤️','😂','😮','😢','😡'];
+const EMOJIS = [
+  '😀','😂','😍','🥰','😎','🤔','😴','😡','😢','😱','🥳','😇',
+  '👍','👎','❤️','🔥','🎉','💯','👏','🙏','💪','✨','🌟','🎯',
+  '😅','🤣','😉','😊','😋','😝','🤑','🤗','😒','😞','🙂','😏',
+  '🐶','🐱','🐻','🦊','🐸','🌈','⭐','🌙','🍕','🎂','🚀','💎',
+];
+
+const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onBack, isMobile, typingUser, onEditMessage, onReactMessage }) => {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [attachment, setAttachment] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [hoveredMsgId, setHoveredMsgId] = useState(null);
+  const [editingMsgId, setEditingMsgId] = useState(null);
+  const [editContent, setEditContent] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
+  const emojiPickerRef = useRef(null);
   const [stars, setStars] = useState([]);
   const [showFriendProfile, setShowFriendProfile] = useState(false);
   
@@ -94,6 +108,37 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
       e.preventDefault();
       handleSubmit(e);
     }
+  };
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const insertEmoji = (emoji) => {
+    const textarea = textareaRef.current;
+    if (!textarea) { setMessage(prev => prev + emoji); return; }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newMsg = message.slice(0, start) + emoji + message.slice(end);
+    setMessage(newMsg);
+    setTimeout(() => {
+      textarea.selectionStart = start + emoji.length;
+      textarea.selectionEnd = start + emoji.length;
+      textarea.focus();
+    }, 0);
+  };
+
+  const handleSaveEdit = (msgId) => {
+    if (editContent.trim()) onEditMessage(msgId, editContent.trim());
+    setEditingMsgId(null);
+    setEditContent('');
   };
   function formatLastSeen(timestamp) {
     const date = new Date(timestamp);
@@ -198,11 +243,22 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           const isOwnMessage = msg.sender?._id === user?._id;
           const messageDate = new Date(msg.createdAt);
           const isToday = messageDate.toDateString() === new Date().toDateString();
-          
+          const isEditing = editingMsgId === msg._id;
+          const isHovered = hoveredMsgId === msg._id;
+
+          // Group reactions by emoji
+          const reactionGroups = {};
+          (msg.reactions || []).forEach(r => {
+            if (!reactionGroups[r.emoji]) reactionGroups[r.emoji] = [];
+            reactionGroups[r.emoji].push(r);
+          });
+
           return (
-            <div 
-              key={msg._id} 
+            <div
+              key={msg._id}
               className={`message-wrapper ${isOwnMessage ? 'own-message' : 'other-message'}`}
+              onMouseEnter={() => setHoveredMsgId(msg._id)}
+              onMouseLeave={() => setHoveredMsgId(null)}
             >
               {!isOwnMessage && (
                 <img
@@ -211,50 +267,78 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
                   className="message-avatar"
                 />
               )}
-              
+
               <div className="message-content-wrapper">
                 {!isOwnMessage && (
-                  <div className="message-sender">
-                    {msg.sender?.name}
+                  <div className="message-sender">{msg.sender?.name}</div>
+                )}
+
+                {/* Hover reaction/edit bar */}
+                {isHovered && !isEditing && (
+                  <div className={`reaction-bar ${isOwnMessage ? 'reaction-bar-own' : 'reaction-bar-other'}`}>
+                    {QUICK_REACTIONS.map(emoji => (
+                      <button key={emoji} className="reaction-btn" onClick={() => onReactMessage(msg._id, emoji)}>
+                        {emoji}
+                      </button>
+                    ))}
+                    {isOwnMessage && (
+                      <button className="reaction-btn edit-trigger-btn" title="Edit message" onClick={() => { setEditingMsgId(msg._id); setEditContent(msg.content || ''); }}>
+                        ✏️
+                      </button>
+                    )}
                   </div>
                 )}
+
                 <div className="message-bubble">
-                  
                   <div className="message-glow" />
-                  
                   {msg.type === 'image' && msg.mediaUrl && (
-                    <img 
-                      src={msg.mediaUrl} 
-                      alt="attachment" 
-                      className="message-image"
-                    />
+                    <img src={msg.mediaUrl} alt="attachment" className="message-image" />
                   )}
                   {msg.type === 'video' && msg.mediaUrl && (
-                    <video 
-                      controls 
-                      src={msg.mediaUrl} 
-                      className="message-video"
-                    />
+                    <video controls src={msg.mediaUrl} className="message-video" />
                   )}
                   {msg.type === 'file' && msg.mediaUrl && (
-                    <a 
-                      href={msg.mediaUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="message-file-link"
-                    >
+                    <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" className="message-file-link">
                       <span className="file-icon">📄</span>
                       <span className="file-name">{msg.mediaName || 'Attachment'}</span>
                     </a>
                   )}
-                  {msg.content && (
-                    <span className="message-text">
-                      {msg.content}
-                    </span>
+                  {isEditing ? (
+                    <div className="edit-mode">
+                      <textarea
+                        className="edit-textarea"
+                        value={editContent}
+                        onChange={e => setEditContent(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit(msg._id); } if (e.key === 'Escape') { setEditingMsgId(null); } }}
+                        autoFocus
+                      />
+                      <div className="edit-actions">
+                        <button className="edit-save" onClick={() => handleSaveEdit(msg._id)}>Save</button>
+                        <button className="edit-cancel" onClick={() => setEditingMsgId(null)}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    msg.content && <span className="message-text">{msg.content}</span>
                   )}
+                  {msg.editedAt && !isEditing && <span className="edited-label"> (edited)</span>}
                 </div>
+
+                {/* Reactions chips */}
+                {Object.keys(reactionGroups).length > 0 && (
+                  <div className="reactions-display">
+                    {Object.entries(reactionGroups).map(([emoji, reactors]) => {
+                      const iMine = reactors.some(r => (r.userId?._id || r.userId) === user?._id);
+                      return (
+                        <button key={emoji} className={`reaction-chip${iMine ? ' my-reaction' : ''}`} onClick={() => onReactMessage(msg._id, emoji)}>
+                          {emoji} {reactors.length}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 <div className="message-info">
-                  {isToday 
+                  {isToday
                     ? messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     : messageDate.toLocaleDateString() + ' ' + messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                   }
@@ -302,15 +386,15 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           </div>
         )}
         <form onSubmit={handleSubmit} className="message-form">
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileSelect} 
-            style={{ display: 'none' }} 
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
             accept="image/*,video/*,application/pdf"
           />
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="attach-button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
@@ -318,7 +402,32 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           >
             <span className="attach-icon">📎</span>
           </button>
+
+          {/* Emoji picker trigger + panel */}
+          <div className="emoji-picker-wrapper" ref={emojiPickerRef}>
+            <button
+              type="button"
+              className="emoji-trigger-btn"
+              onClick={() => setShowEmojiPicker(p => !p)}
+              title="Emoji"
+            >
+              😊
+            </button>
+            {showEmojiPicker && (
+              <div className="emoji-picker-panel">
+                <div className="emoji-grid">
+                  {EMOJIS.map(emoji => (
+                    <button key={emoji} type="button" className="emoji-item" onClick={() => { insertEmoji(emoji); setShowEmojiPicker(false); }}>
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <textarea
+            ref={textareaRef}
             value={message}
             onChange={handleChange}
             onKeyPress={handleKeyPress}
@@ -327,12 +436,11 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
             rows="1"
             disabled={isUploading}
           />
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="send-button"
             disabled={(!message.trim() && !attachment) || isUploading}
           >
-            
             <div className="send-button-glow" />
             <span className="send-icon">{isUploading ? '⌛' : '➤'}</span>
           </button>
@@ -721,6 +829,142 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
           30% { transform: translateY(-6px); opacity: 1; }
         }
+
+        /* Reaction bar (hover) */
+        .message-content-wrapper { position: relative; }
+
+        .reaction-bar {
+          position: absolute;
+          display: flex;
+          gap: 4px;
+          background: #2f3136;
+          border: 1px solid #40444b;
+          border-radius: 20px;
+          padding: 4px 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+          z-index: 10;
+          bottom: 100%;
+          animation: reactionFadeIn 0.15s ease;
+        }
+        .reaction-bar-other { left: 0; }
+        .reaction-bar-own   { right: 0; }
+
+        @keyframes reactionFadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .reaction-btn {
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          font-size: 18px;
+          padding: 2px 4px;
+          border-radius: 8px;
+          transition: transform 0.15s, background 0.15s;
+          line-height: 1;
+        }
+        .reaction-btn:hover { background: rgba(114,137,218,0.2); transform: scale(1.25); }
+        .edit-trigger-btn { font-size: 15px; }
+
+        /* Reactions chips below bubble */
+        .reactions-display {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px;
+          margin-top: 4px;
+        }
+        .reaction-chip {
+          background: #40444b;
+          border: 1px solid #4f545c;
+          color: #dcddde;
+          border-radius: 12px;
+          padding: 2px 8px;
+          font-size: 13px;
+          cursor: pointer;
+          transition: all 0.15s;
+          display: flex;
+          align-items: center;
+          gap: 3px;
+        }
+        .reaction-chip:hover { background: #4f545c; }
+        .reaction-chip.my-reaction {
+          background: rgba(114,137,218,0.25);
+          border-color: #7289da;
+          color: #fff;
+        }
+
+        /* Edited label */
+        .edited-label {
+          font-size: 10px;
+          opacity: 0.55;
+          font-style: italic;
+        }
+
+        /* Inline edit mode */
+        .edit-mode { display: flex; flex-direction: column; gap: 6px; }
+        .edit-textarea {
+          width: 100%;
+          min-height: 60px;
+          background: rgba(0,0,0,0.3);
+          border: 1px solid #7289da;
+          border-radius: 6px;
+          color: #fff;
+          font-size: 14px;
+          padding: 6px 10px;
+          resize: vertical;
+          font-family: inherit;
+          outline: none;
+        }
+        .edit-actions { display: flex; gap: 6px; }
+        .edit-save {
+          background: #7289da; color: #fff; border: none;
+          padding: 4px 12px; border-radius: 4px; cursor: pointer;
+          font-size: 12px; font-weight: 600; transition: background 0.2s;
+        }
+        .edit-save:hover { background: #5b6eae; }
+        .edit-cancel {
+          background: #40444b; color: #dcddde; border: none;
+          padding: 4px 12px; border-radius: 4px; cursor: pointer;
+          font-size: 12px; transition: background 0.2s;
+        }
+        .edit-cancel:hover { background: #4f545c; }
+
+        /* Emoji picker in input bar */
+        .emoji-picker-wrapper { position: relative; flex-shrink: 0; }
+        .emoji-trigger-btn {
+          width: 48px; height: 48px; border-radius: 50%;
+          background: #4f545c; border: none; cursor: pointer;
+          font-size: 22px; display: flex; align-items: center;
+          justify-content: center; transition: background 0.2s;
+        }
+        .emoji-trigger-btn:hover { background: #7289da; }
+
+        .emoji-picker-panel {
+          position: absolute;
+          bottom: calc(100% + 10px);
+          left: 0;
+          background: #2f3136;
+          border: 1px solid #40444b;
+          border-radius: 12px;
+          padding: 10px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+          z-index: 100;
+          width: 280px;
+          animation: reactionFadeIn 0.15s ease;
+        }
+        .emoji-grid {
+          display: grid;
+          grid-template-columns: repeat(8, 1fr);
+          gap: 2px;
+        }
+        .emoji-item {
+          background: transparent; border: none; cursor: pointer;
+          font-size: 20px; padding: 4px; border-radius: 6px;
+          transition: background 0.15s, transform 0.15s;
+          line-height: 1;
+        }
+        .emoji-item:hover { background: rgba(114,137,218,0.2); transform: scale(1.2); }
 
         /* Input area */
         .message-input-container {

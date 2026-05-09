@@ -124,30 +124,35 @@ const ChatPage = () => {
           ? { ...room, lastMessage: message, updatedAt: new Date().toISOString() }
           : room
       ));
-
       setMessages(prev => (
         selectedRoom && message.roomId === selectedRoom._id
-          ? [...prev, message]
-          : prev
+          ? [...prev, message] : prev
       ));
     };
 
-    const handleUserTyping = ({ userId, userName, isTyping }) => {
+    const handleUserTyping = ({ userName, isTyping }) => {
       if (!selectedRoom) return;
-      // Only show typing for messages from the other participant in the current room
-      if (isTyping) {
-        setTypingUser(userName);
-      } else {
-        setTypingUser(null);
-      }
+      setTypingUser(isTyping ? userName : null);
+    };
+
+    const handleMessageEdited = (updatedMsg) => {
+      setMessages(prev => prev.map(m => m._id === updatedMsg._id ? updatedMsg : m));
+    };
+
+    const handleMessageReacted = (updatedMsg) => {
+      setMessages(prev => prev.map(m => m._id === updatedMsg._id ? updatedMsg : m));
     };
 
     socket.on('receive-message', handleIncomingMessage);
     socket.on('user-typing', handleUserTyping);
+    socket.on('message-edited', handleMessageEdited);
+    socket.on('message-reacted', handleMessageReacted);
 
     return () => {
       socket.off('receive-message', handleIncomingMessage);
       socket.off('user-typing', handleUserTyping);
+      socket.off('message-edited', handleMessageEdited);
+      socket.off('message-reacted', handleMessageReacted);
     };
   }, [socket, selectedRoom]);
 
@@ -202,11 +207,16 @@ const ChatPage = () => {
 
   const handleTyping = (isTyping) => {
     if (socket && selectedRoom) {
-      socket.emit('typing', {
-        roomId: selectedRoom._id,
-        isTyping
-      });
+      socket.emit('typing', { roomId: selectedRoom._id, isTyping });
     }
+  };
+
+  const handleEditMessage = (messageId, content) => {
+    if (socket) socket.emit('edit-message', { messageId, content });
+  };
+
+  const handleReactMessage = (messageId, emoji) => {
+    if (socket) socket.emit('react-message', { messageId, emoji });
   };
 
   const handleStartNewChat = async (userId) => {
@@ -451,6 +461,8 @@ const ChatPage = () => {
           onBack={handleBackToChats}
           isMobile={isMobile}
           typingUser={typingUser}
+          onEditMessage={handleEditMessage}
+          onReactMessage={handleReactMessage}
         />
       ) : (
         // Show welcome screen on desktop when no chat is selected
