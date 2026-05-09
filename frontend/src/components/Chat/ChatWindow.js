@@ -987,13 +987,36 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           padding: 10px;
           box-shadow: 0 8px 24px rgba(0,0,0,0.5);
           z-index: 100;
-          width: 280px;
+          width: 320px;
+          max-height: 300px;
+          overflow-y: auto;
           animation: reactionFadeIn 0.15s ease;
+          scrollbar-width: thin;
+          scrollbar-color: #202225 #2f3136;
         }
+
+        .emoji-picker-panel::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        .emoji-picker-panel::-webkit-scrollbar-track {
+          background: #2f3136;
+          border-radius: 10px;
+        }
+        
+        .emoji-picker-panel::-webkit-scrollbar-thumb {
+          background: #202225;
+          border-radius: 10px;
+        }
+        
+        .emoji-picker-panel::-webkit-scrollbar-thumb:hover {
+          background: #7289da;
+        }
+
         .emoji-grid {
           display: grid;
           grid-template-columns: repeat(8, 1fr);
-          gap: 2px;
+          gap: 4px;
         }
         .emoji-item {
           background: transparent; border: none; cursor: pointer;
