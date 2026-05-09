@@ -177,6 +177,23 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
     setEditingMsgId(null);
     setEditContent('');
   };
+  const renderHighlightedText = (text) => {
+    if (!text) return null;
+    const highlightChars = ['p', 'i', 'b', 'o', 't', 'y', 's', 'n'];
+    const highlightSet = new Set([...highlightChars, ...highlightChars.map(c => c.toUpperCase())]);
+
+    return text.split('').map((char, index) => {
+      if (highlightSet.has(char)) {
+        return (
+          <span key={index} className="special-highlight">
+            {char}
+          </span>
+        );
+      }
+      return char;
+    });
+  };
+
   function formatLastSeen(timestamp) {
     const date = new Date(timestamp);
     return date.toLocaleString(); // or a custom formatter
@@ -355,7 +372,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
                       </div>
                     </div>
                   ) : (
-                    msg.content && <span className="message-text">{msg.content}</span>
+                    msg.content && <span className="message-text">{renderHighlightedText(msg.content)}</span>
                   )}
                   {msg.editedAt && !isEditing && <span className="edited-label"> (edited)</span>}
                 </div>
@@ -800,6 +817,18 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
 
         .own-message .message-text {
           text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .special-highlight {
+          background: linear-gradient(135deg, #ff69b4 0%, #ffd700 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          font-family: 'Georgia', serif;
+          font-weight: 800;
+          display: inline-block;
+          filter: drop-shadow(0 0 1px rgba(255, 215, 0, 0.3));
+          padding: 0 1px;
+          transform: scale(1.1);
         }
 
         .message-info {

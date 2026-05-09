@@ -9,16 +9,33 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
   // Filter rooms based on search
   const filteredRooms = rooms.filter(room => {
     if (!searchQuery) return true;
-    
+
     const otherParticipant = room.participants?.find(p => p._id !== user?._id?.toString()) || room.participants?.[0];
     const searchLower = searchQuery.toLowerCase();
-    
+
     return (
       otherParticipant?.name?.toLowerCase().includes(searchLower) ||
       otherParticipant?.email?.toLowerCase().includes(searchLower) ||
       room.lastMessage?.content?.toLowerCase().includes(searchLower)
     );
   });
+
+  const renderHighlightedText = (text) => {
+    if (!text) return null;
+    const highlightChars = ['p', 'i', 'b', 'o', 't', 'y', 's', 'n'];
+    const highlightSet = new Set([...highlightChars, ...highlightChars.map(c => c.toUpperCase())]);
+
+    return text.split('').map((char, index) => {
+      if (highlightSet.has(char)) {
+        return (
+          <span key={index} className="special-highlight">
+            {char}
+          </span>
+        );
+      }
+      return char;
+    });
+  };
 
   return (
     <div className="chat-sidebar">
@@ -33,19 +50,19 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
           />
           <span className="search-icon">🔍</span>
         </div>
-        <button 
+        <button
           className="new-chat-button"
           onClick={onStartNewChat}
         >
           + New Chat
         </button>
       </div>
-      
+
       <div className="rooms-list">
         {filteredRooms.map(room => {
           const otherParticipant = room.participants?.find(p => p._id !== user?._id?.toString()) || room.participants?.[0];
           const isOnline = onlineUsers.has(otherParticipant?._id?.toString());
-          
+
           return (
             <div
               key={room._id}
@@ -62,7 +79,7 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
                   <div className="online-indicator" />
                 )}
               </div>
-              
+
               <div className="room-info">
                 <div className="room-header">
                   <div className="room-name">{otherParticipant?.name || 'Unknown User'}</div>
@@ -71,13 +88,13 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
                   )}
                 </div>
                 <div className="room-preview">
-                  {room.lastMessage?.content || 'No messages yet'}
+                  {room.lastMessage?.content ? renderHighlightedText(room.lastMessage.content) : 'No messages yet'}
                 </div>
               </div>
-              
+
               <div className="room-meta">
                 <div className="room-time">
-                  {room.lastMessage?.createdAt 
+                  {room.lastMessage?.createdAt
                     ? new Date(room.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     : ''
                   }
@@ -99,7 +116,7 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
             <div className="empty-text">
               {searchQuery ? 'Try a different search' : 'Start a new chat to get started'}
             </div>
-            <button 
+            <button
               className="empty-action-button"
               onClick={onStartNewChat}
             >
@@ -535,6 +552,18 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
           .rooms-list::-webkit-scrollbar {
             width: 4px;
           }
+        }
+
+        .special-highlight {
+          background: linear-gradient(135deg, #ff69b4 0%, #ffd700 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          font-family: 'Georgia', serif;
+          font-weight: 800;
+          display: inline-block;
+          filter: drop-shadow(0 0 1px rgba(255, 215, 0, 0.3));
+          padding: 0 1px;
+          transform: scale(1.1);
         }
       `}</style>
     </div>
