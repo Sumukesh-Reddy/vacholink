@@ -22,7 +22,7 @@ const ChatSidebar = ({ rooms, selectedRoom, onSelectRoom, onStartNewChat, online
 
   const renderHighlightedText = (text) => {
     if (!text) return null;
-    const highlightChars = ['p', 'i', 'b', 'o', 't', 'y', 's', 'n'];
+    const highlightChars = [];
     const highlightSet = new Set([...highlightChars, ...highlightChars.map(c => c.toUpperCase())]);
 
     return text.split('').map((char, index) => {
