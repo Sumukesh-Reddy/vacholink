@@ -8,10 +8,8 @@ import { useAuth } from '../../contexts/AuthContext';
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 
 const Register = () => {
-  const [step, setStep] = useState(0); // 0: Email, 1: OTP, 2: Details
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -46,37 +44,6 @@ const Register = () => {
     generateStars();
   }, []);
 
-  const handleSendOtp = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const response = await axios.post(`${API_URL}/api/auth/send-otp`, { email });
-      if (response.data.success) {
-        toast.success(response.data.message);
-        setStep(1);
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to send OTP');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const response = await axios.post(`${API_URL}/api/auth/verify-otp`, { email, otp });
-      if (response.data.success) {
-        toast.success(response.data.message);
-        setStep(2);
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Invalid OTP');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -138,114 +105,85 @@ const Register = () => {
           <p>Create your secure account</p>
         </div>
 
-        {step === 0 && (
-          <form onSubmit={handleSendOtp} className="auth-form">
-            <div className="auth-input-group">
-              <label>EMAIL ADDRESS</label>
-              <input 
-                type="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                placeholder="Enter your email"
-                required 
-              />
-            </div>
-            <button type="submit" disabled={loading} className="auth-button">
-              {loading ? 'Sending OTP...' : 'Send Verification OTP'}
-            </button>
-            
-            <div className="auth-divider"><span>OR</span></div>
-            
-            <div className="google-btn-wrapper">
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={() => toast.error('Google login failed')}
-                theme="filled_black"
-                shape="pill"
-                text="signup_with"
-              />
-            </div>
-          </form>
-        )}
+        <form onSubmit={handleSignup} className="auth-form">
+          <div className="auth-input-group">
+            <label>DISPLAY NAME</label>
+            <input 
+              type="text" 
+              value={name} 
+              onChange={(e) => setName(e.target.value)} 
+              placeholder="How others see you"
+              required 
+            />
+          </div>
+          
+          <div className="auth-input-group">
+            <label>EMAIL ADDRESS</label>
+            <input 
+              type="email" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              placeholder="Enter your email"
+              required 
+            />
+          </div>
 
-        {step === 1 && (
-          <form onSubmit={handleVerifyOtp} className="auth-form">
-            <p className="step-info">OTP sent to <strong>{email}</strong></p>
-            <div className="auth-input-group">
-              <label>ENTER OTP</label>
+          <div className="auth-input-group">
+            <label>CREATE PASSWORD</label>
+            <div className="auth-password-wrapper">
               <input 
-                type="text" 
-                value={otp} 
-                onChange={(e) => setOtp(e.target.value)} 
-                placeholder="6-digit code"
-                maxLength="6"
+                type={showPassword ? "text" : "password"} 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                placeholder="At least 6 characters"
                 required 
               />
+              <button 
+                type="button"
+                className="auth-password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
             </div>
-            <button type="submit" disabled={loading} className="auth-button">
-              {loading ? 'Verifying...' : 'Verify Email'}
-            </button>
-            <button type="button" onClick={() => setStep(0)} className="auth-back-btn">
-              Back to Email
-            </button>
-          </form>
-        )}
+          </div>
 
-        {step === 2 && (
-          <form onSubmit={handleSignup} className="auth-form">
-            <div className="auth-input-group">
-              <label>DISPLAY NAME</label>
+          <div className="auth-input-group">
+            <label>CONFIRM PASSWORD</label>
+            <div className="auth-password-wrapper">
               <input 
-                type="text" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                placeholder="How others see you"
+                type={showConfirmPassword ? "text" : "password"} 
+                value={confirmPassword} 
+                onChange={(e) => setConfirmPassword(e.target.value)} 
+                placeholder="Repeat password"
                 required 
               />
+              <button 
+                type="button"
+                className="auth-password-toggle"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
             </div>
-            <div className="auth-input-group">
-              <label>CREATE PASSWORD</label>
-              <div className="auth-password-wrapper">
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  placeholder="At least 6 characters"
-                  required 
-                />
-                <button 
-                  type="button"
-                  className="auth-password-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? '👁️' : '👁️‍🗨️'}
-                </button>
-              </div>
-            </div>
-            <div className="auth-input-group">
-              <label>CONFIRM PASSWORD</label>
-              <div className="auth-password-wrapper">
-                <input 
-                  type={showConfirmPassword ? "text" : "password"} 
-                  value={confirmPassword} 
-                  onChange={(e) => setConfirmPassword(e.target.value)} 
-                  placeholder="Repeat password"
-                  required 
-                />
-                <button 
-                  type="button"
-                  className="auth-password-toggle"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
-                </button>
-              </div>
-            </div>
-            <button type="submit" disabled={loading} className="auth-button">
-              {loading ? 'Creating Account...' : 'Complete Signup'}
-            </button>
-          </form>
-        )}
+          </div>
+
+          <button type="submit" disabled={loading} className="auth-button">
+            {loading ? 'Creating Account...' : 'Complete Signup'}
+          </button>
+
+          <div className="auth-divider"><span>OR</span></div>
+          
+          <div className="google-btn-wrapper">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => toast.error('Google login failed')}
+              theme="filled_black"
+              shape="pill"
+              text="signup_with"
+            />
+          </div>
+        </form>
 
         <div className="auth-footer">
           <p>Already have an account? <Link to="/login">Sign In</Link></p>
