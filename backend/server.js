@@ -524,11 +524,10 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
-    // Removed OTP verification check for direct registration
-    
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: 'User with this email already exists' });
+    // Verify OTP was previously verified
+    const storedData = signupOtps.get(email);
+    if (!storedData || !storedData.verified) {
+      return res.status(401).json({ success: false, message: 'Email not verified. Please verify OTP first.' });
     }
 
     const salt = await bcrypt.genSalt(10);
