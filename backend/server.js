@@ -1009,7 +1009,7 @@ app.delete('/api/chat/room/:roomId', authenticateToken, async (req, res) => {
 app.get('/api/chat/messages/:roomId', authenticateToken, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { page = 1, limit = 50 } = req.query;
+    const { page = 1, limit = 100000 } = req.query;
 
     const room = await Room.findOne({
       _id: roomId,
@@ -1023,15 +1023,17 @@ app.get('/api/chat/messages/:roomId', authenticateToken, async (req, res) => {
       });
     }
 
-    const messages = await Message.find({
+    let messages = await Message.find({
       roomId,
       deleted: false
     })
       .populate('sender', 'name profilePhoto')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
-      .limit(parseInt(limit))
-      .sort({ createdAt: 1 });
+      .limit(parseInt(limit));
+
+    // Reverse to get chronological order
+    messages = messages.reverse();
 
     await Message.updateMany(
       {

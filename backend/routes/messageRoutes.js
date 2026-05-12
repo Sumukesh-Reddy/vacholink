@@ -5,11 +5,12 @@ const router = express.Router();
 
 router.get("/:roomId", async (req, res) => {
   try {
-    const msgs = await Message.find({ roomId: req.params.roomId })
+    let msgs = await Message.find({ roomId: req.params.roomId })
       .populate("sender", "name avatar")
-      .sort({ createdAt: 1 })
-      .limit(100); 
+      .sort({ createdAt: -1 })
+      .limit(200000);
 
+    msgs = msgs.reverse();
     res.json(msgs);
   } catch (err) {
     console.error("Error loading messages:", err);
