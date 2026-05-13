@@ -412,41 +412,41 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
                   </div>
                 )}
 
+                {/* Action Menu Trigger (Small Arrow) - OUTSIDE BUBBLE */}
+                {isHovered && !isEditing && !msg.deleted && (
+                  <div className="message-menu-container">
+                    <button 
+                      className="message-menu-trigger" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveMenuId(activeMenuId === msg._id ? null : msg._id);
+                      }}
+                    >
+                      ▼
+                    </button>
+                    {activeMenuId === msg._id && (
+                      <div className={`message-actions-dropdown ${isOwnMessage ? 'dropdown-own' : 'dropdown-other'}`}>
+                        <button onClick={() => { handleReply(msg); setActiveMenuId(null); }}>
+                          <span className="menu-icon">↩️</span> Reply
+                        </button>
+                        {isOwnMessage && (
+                          <>
+                            <button onClick={() => { setEditingMsgId(msg._id); setEditContent(msg.content || ''); setActiveMenuId(null); }}>
+                              <span className="menu-icon">✏️</span> Edit
+                            </button>
+                            <button className="delete-option" onClick={() => { if(window.confirm('Delete this message?')) onDeleteMessage(msg._id); setActiveMenuId(null); }}>
+                              <span className="menu-icon">🗑️</span> Delete
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="message-bubble">
                   <div className="message-glow" />
                   
-                  {/* Action Menu Trigger (Small Arrow) */}
-                  {isHovered && !isEditing && !msg.deleted && (
-                    <div className="message-menu-container">
-                      <button 
-                        className="message-menu-trigger" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveMenuId(activeMenuId === msg._id ? null : msg._id);
-                        }}
-                      >
-                        ▼
-                      </button>
-                      {activeMenuId === msg._id && (
-                        <div className={`message-actions-dropdown ${isOwnMessage ? 'dropdown-own' : 'dropdown-other'}`}>
-                          <button onClick={() => { handleReply(msg); setActiveMenuId(null); }}>
-                            <span className="menu-icon">↩️</span> Reply
-                          </button>
-                          {isOwnMessage && (
-                            <>
-                              <button onClick={() => { setEditingMsgId(msg._id); setEditContent(msg.content || ''); setActiveMenuId(null); }}>
-                                <span className="menu-icon">✏️</span> Edit
-                              </button>
-                              <button className="delete-option" onClick={() => { if(window.confirm('Delete this message?')) onDeleteMessage(msg._id); setActiveMenuId(null); }}>
-                                <span className="menu-icon">🗑️</span> Delete
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
                   {/* Reply Context */}
                   {msg.replyTo && (
                     <div 
@@ -1598,19 +1598,19 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
         /* Dropdown Menu Styles */
         .message-menu-container {
           position: absolute;
-          top: -10px;
-          right: -5px;
-          z-index: 25;
+          top: 0px;
+          right: -10px;
+          z-index: 30;
         }
 
         .own-message .message-menu-container {
-          right: -5px;
+          right: -10px;
           left: auto;
         }
 
         .other-message .message-menu-container {
+          right: -30px;
           left: auto;
-          right: -15px;
         }
 
         .message-menu-trigger {
