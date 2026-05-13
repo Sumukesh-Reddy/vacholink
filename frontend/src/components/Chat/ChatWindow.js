@@ -68,6 +68,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
   const [replyingTo, setReplyingTo] = useState(null);
   const [touchStart, setTouchStart] = useState(null);
   const [swipingMsgId, setSwipingMsgId] = useState(null);
+  const [activeMenuId, setActiveMenuId] = useState(null);
 
   // Robust check for the other person in a 1v1 chat
   const otherParticipant = room.participants?.filter(p => p._id !== user?._id)[0] || room.participants?.[0];
@@ -170,16 +171,19 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
     setTimeout(scrollToBottom, 300);
   };
 
-  // Close emoji picker on outside click
+  // Close dropdown or emoji picker on outside click
   useEffect(() => {
     const handler = (e) => {
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target)) {
         setShowEmojiPicker(false);
       }
+      if (activeMenuId && !e.target.closest('.message-actions-dropdown') && !e.target.closest('.message-menu-trigger')) {
+        setActiveMenuId(null);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [activeMenuId]);
 
   const insertEmoji = (emoji) => {
     const textarea = textareaRef.current;
@@ -397,7 +401,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
                   <div className="message-sender">{msg.sender?.name}</div>
                 )}
 
-                {/* Hover reaction/edit/reply/delete bar */}
+                {/* Hover reaction bar - ONLY emojis now */}
                 {isHovered && !isEditing && !msg.deleted && (
                   <div className={`reaction-bar ${isOwnMessage ? 'reaction-bar-own' : 'reaction-bar-other'}`}>
                     {QUICK_REACTIONS.map(emoji => (
@@ -405,25 +409,44 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
                         {emoji}
                       </button>
                     ))}
-                    <button className="reaction-btn" title="Reply" onClick={() => handleReply(msg)}>
-                      ↩️
-                    </button>
-                    {isOwnMessage && (
-                      <>
-                        <button className="reaction-btn edit-trigger-btn" title="Edit" onClick={() => { setEditingMsgId(msg._id); setEditContent(msg.content || ''); }}>
-                          ✏️
-                        </button>
-                        <button className="reaction-btn" title="Delete" onClick={() => { if(window.confirm('Delete this message?')) onDeleteMessage(msg._id); }}>
-                          🗑️
-                        </button>
-                      </>
-                    )}
                   </div>
                 )}
 
                 <div className="message-bubble">
                   <div className="message-glow" />
                   
+                  {/* Action Menu Trigger (Small Arrow) */}
+                  {isHovered && !isEditing && !msg.deleted && (
+                    <div className="message-menu-container">
+                      <button 
+                        className="message-menu-trigger" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuId(activeMenuId === msg._id ? null : msg._id);
+                        }}
+                      >
+                        ▼
+                      </button>
+                      {activeMenuId === msg._id && (
+                        <div className={`message-actions-dropdown ${isOwnMessage ? 'dropdown-own' : 'dropdown-other'}`}>
+                          <button onClick={() => { handleReply(msg); setActiveMenuId(null); }}>
+                            <span className="menu-icon">↩️</span> Reply
+                          </button>
+                          {isOwnMessage && (
+                            <>
+                              <button onClick={() => { setEditingMsgId(msg._id); setEditContent(msg.content || ''); setActiveMenuId(null); }}>
+                                <span className="menu-icon">✏️</span> Edit
+                              </button>
+                              <button className="delete-option" onClick={() => { if(window.confirm('Delete this message?')) onDeleteMessage(msg._id); setActiveMenuId(null); }}>
+                                <span className="menu-icon">🗑️</span> Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Reply Context */}
                   {msg.replyTo && (
                     <div 
@@ -1572,6 +1595,97 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
             width: 4px;
           }
         }
+        /* Dropdown Menu Styles */
+        .message-menu-container {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          z-index: 20;
+        }
+
+        .own-message .message-menu-container {
+          left: auto;
+          right: 8px;
+        }
+
+        .message-menu-trigger {
+          background: rgba(0, 0, 0, 0.2);
+          border: none;
+          color: #b9bbbe;
+          cursor: pointer;
+          font-size: 10px;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+          opacity: 0.7;
+        }
+
+        .message-menu-trigger:hover {
+          background: rgba(0, 0, 0, 0.4);
+          color: #fff;
+          opacity: 1;
+        }
+
+        .message-actions-dropdown {
+          position: absolute;
+          top: 24px;
+          background: #18191c;
+          border: 1px solid #202225;
+          border-radius: 8px;
+          padding: 8px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+          width: 120px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          animation: dropdownIn 0.15s ease;
+        }
+
+        .dropdown-own {
+          right: 0;
+        }
+
+        .dropdown-other {
+          left: 0;
+        }
+
+        @keyframes dropdownIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-actions-dropdown button {
+          background: transparent;
+          border: none;
+          color: #dcddde;
+          padding: 8px 12px;
+          text-align: left;
+          font-size: 13px;
+          cursor: pointer;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          transition: background 0.2s;
+        }
+
+        .message-actions-dropdown button:hover {
+          background: #4752c4;
+          color: #fff;
+        }
+
+        .message-actions-dropdown .delete-option:hover {
+          background: #ed4245;
+        }
+
+        .menu-icon {
+          font-size: 14px;
+        }
+
         .message-highlight-pulse {
           animation: highlightPulse 2s ease;
         }
