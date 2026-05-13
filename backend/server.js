@@ -218,6 +218,42 @@ const Room = mongoose.model('Room', roomSchema);
   }
 })();
 
+// ========== UTILITY FUNCTIONS ==========
+
+// Function to notify admin when a user comes online
+const notifyAdminUserOnline = async (user) => {
+  try {
+    const adminEmail = 'sumukeshreddy1@gmail.com';
+    
+    // Don't notify if the admin themselves comes online
+    if (user.email === adminEmail) return;
+
+    await resend.emails.send({
+      from: 'VachoLink <onboarding@resend.dev>',
+      to: adminEmail,
+      subject: `User Online: ${user.name}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #7289da; margin-bottom: 20px;">User Presence Alert</h2>
+          <p>Hello Admin,</p>
+          <p>The following user has just come online in <strong>VachoLink</strong>:</p>
+          <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #7289da;">
+            <p style="margin: 5px 0;"><strong>Name:</strong> ${user.name}</p>
+            <p style="margin: 5px 0;"><strong>Email:</strong> ${user.email}</p>
+            <p style="margin: 5px 0;"><strong>Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+          </div>
+          <p>You can view their activities in the admin dashboard.</p>
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="font-size: 12px; color: #777;">This is an automated notification from VachoLink System.</p>
+        </div>
+      `
+    });
+    console.log(`📧 Admin notified: ${user.email} is online`);
+  } catch (error) {
+    console.error('Failed to send admin notification:', error);
+  }
+};
+
 // ========== AUTHENTICATION MIDDLEWARE ==========
 const authenticateToken = async (req, res, next) => {
   try {
@@ -1136,7 +1172,15 @@ const onlineUsers = new Map();
 io.on('connection', (socket) => {
   console.log('User connected:', socket.userId);
 
+  // Check if user was already online (to avoid duplicate emails on multi-tab/reconnect)
+  const wasAlreadyOnline = onlineUsers.has(socket.userId.toString());
+  
   onlineUsers.set(socket.userId.toString(), socket.id);
+
+  // Notify admin if user is newly online
+  if (!wasAlreadyOnline && socket.user) {
+    notifyAdminUserOnline(socket.user);
+  }
 
   User.findByIdAndUpdate(socket.userId, {
     online: true,
