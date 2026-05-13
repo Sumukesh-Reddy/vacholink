@@ -143,16 +143,24 @@ const ChatPage = () => {
       setMessages(prev => prev.map(m => m._id === updatedMsg._id ? updatedMsg : m));
     };
 
+    const handleMessageDeleted = ({ messageId }) => {
+      setMessages(prev => prev.map(m => 
+        m._id === messageId ? { ...m, deleted: true, content: 'This message was deleted' } : m
+      ));
+    };
+
     socket.on('receive-message', handleIncomingMessage);
     socket.on('user-typing', handleUserTyping);
     socket.on('message-edited', handleMessageEdited);
     socket.on('message-reacted', handleMessageReacted);
+    socket.on('message-deleted', handleMessageDeleted);
 
     return () => {
       socket.off('receive-message', handleIncomingMessage);
       socket.off('user-typing', handleUserTyping);
       socket.off('message-edited', handleMessageEdited);
       socket.off('message-reacted', handleMessageReacted);
+      socket.off('message-deleted', handleMessageDeleted);
     };
   }, [socket, selectedRoom]);
 
@@ -170,7 +178,7 @@ const ChatPage = () => {
     fetchMessages(room._id);
   };
 
-  const handleSendMessage = async (content, attachment) => {
+  const handleSendMessage = async (content, attachment, replyTo = null) => {
     if (!socket || !selectedRoom || (!content?.trim() && !attachment)) return;
 
     let mediaUrl = null;
@@ -201,7 +209,8 @@ const ChatPage = () => {
       content: content?.trim() || '',
       type,
       mediaUrl,
-      mediaName
+      mediaName,
+      replyTo
     });
   };
 
@@ -217,6 +226,10 @@ const ChatPage = () => {
 
   const handleReactMessage = (messageId, emoji) => {
     if (socket) socket.emit('react-message', { messageId, emoji });
+  };
+
+  const handleDeleteMessage = (messageId) => {
+    if (socket) socket.emit('delete-message', { messageId });
   };
 
   const handleStartNewChat = async (userId) => {
@@ -463,6 +476,7 @@ const ChatPage = () => {
           typingUser={typingUser}
           onEditMessage={handleEditMessage}
           onReactMessage={handleReactMessage}
+          onDeleteMessage={handleDeleteMessage}
         />
       ) : (
         // Show welcome screen on desktop when no chat is selected

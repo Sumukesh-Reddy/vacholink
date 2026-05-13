@@ -185,6 +185,7 @@ const messageSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     userName: { type: String }
   }],
+  replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -223,12 +224,12 @@ const Room = mongoose.model('Room', roomSchema);
 // Function to notify admin when a user comes online
 const notifyAdminUserOnline = async (user) => {
   try {
-    const adminEmail = 'sumukeshreddy1@gmail.com';
+    // Priority: .env ADMIN_EMAIL > hardcoded fallback
+    const adminEmail = process.env.ADMIN_EMAIL || 'sumukeshreddy1@gmail.com';
     
-    // Don't notify if the admin themselves comes online
-    if (user.email === adminEmail) return;
+    console.log(`📡 Attempting to notify admin (${adminEmail}) about user: ${user.email}`);
 
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: 'VachoLink <onboarding@resend.dev>',
       to: adminEmail,
       subject: `User Online: ${user.name}`,
@@ -248,9 +249,14 @@ const notifyAdminUserOnline = async (user) => {
         </div>
       `
     });
-    console.log(`📧 Admin notified: ${user.email} is online`);
+
+    if (error) {
+      console.error(`❌ Resend Error notifying admin:`, error);
+    } else {
+      console.log(`📧 Admin notified successfully! ID: ${data?.id || 'N/A'} (Sent to: ${adminEmail})`);
+    }
   } catch (error) {
-    console.error('Failed to send admin notification:', error);
+    console.error('❌ Failed to send admin notification:', error);
   }
 };
 
@@ -1060,10 +1066,13 @@ app.get('/api/chat/messages/:roomId', authenticateToken, async (req, res) => {
     }
 
     let messages = await Message.find({
-      roomId,
-      deleted: false
+      roomId
     })
       .populate('sender', 'name profilePhoto')
+      .populate({
+        path: 'replyTo',
+        populate: { path: 'sender', select: 'name' }
+      })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
@@ -1212,11 +1221,16 @@ io.on('connection', (socket) => {
         type,
         mediaUrl,
         mediaName,
-        roomId
+        roomId,
+        replyTo: data.replyTo || null
       });
 
       const populatedMessage = await Message.findById(message._id)
-        .populate('sender', 'name profilePhoto');
+        .populate('sender', 'name profilePhoto')
+        .populate({
+          path: 'replyTo',
+          populate: { path: 'sender', select: 'name' }
+        });
 
       // Update room's last message (reuse already-fetched room)
       room.lastMessage = message._id;
@@ -1290,6 +1304,30 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('React message error:', error);
       socket.emit('message-error', { error: 'Failed to react to message' });
+    }
+  });
+
+  // Delete a message
+  socket.on('delete-message', async (data) => {
+    try {
+      const { messageId } = data;
+      const message = await Message.findById(messageId);
+      if (!message) return socket.emit('message-error', { error: 'Message not found' });
+      
+      if (message.sender.toString() !== socket.userId.toString()) {
+        return socket.emit('message-error', { error: 'Not authorized to delete this message' });
+      }
+
+      message.deleted = true;
+      message.deletedAt = new Date();
+      // We don't necessarily clear content here to allow "undo" or just keep history, 
+      // but we mark it as deleted so the frontend shows the placeholder.
+      await message.save();
+
+      io.to(message.roomId).emit('message-deleted', { messageId, roomId: message.roomId });
+    } catch (error) {
+      console.error('Delete message error:', error);
+      socket.emit('message-error', { error: 'Failed to delete message' });
     }
   });
 

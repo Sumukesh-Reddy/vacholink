@@ -48,7 +48,7 @@ const EMOJIS = [
   '🌈', '❄️', '⛄', '🌙', '🌛', '🌜', '🌝', '🌚', '🌞', '🪐', '🌍', '🌎',
 ];
 
-const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onBack, isMobile, typingUser, onEditMessage, onReactMessage }) => {
+const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onBack, isMobile, typingUser, onEditMessage, onReactMessage, onDeleteMessage }) => {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -65,6 +65,9 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
   const emojiPickerRef = useRef(null);
   const [stars, setStars] = useState([]);
   const [showFriendProfile, setShowFriendProfile] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [touchStart, setTouchStart] = useState(null);
+  const [swipingMsgId, setSwipingMsgId] = useState(null);
 
   // Robust check for the other person in a 1v1 chat
   const otherParticipant = room.participants?.filter(p => p._id !== user?._id)[0] || room.participants?.[0];
@@ -105,14 +108,16 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
     e.preventDefault();
     const currentMessage = message.trim();
     if (currentMessage || attachment) {
+      const replyId = replyingTo?._id;
       // Clear input immediately for better UX
       setMessage('');
       setAttachment(null);
+      setReplyingTo(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       
       setIsUploading(true);
       try {
-        await onSendMessage(currentMessage, attachment);
+        await onSendMessage(currentMessage, attachment, replyId);
         setIsTyping(false);
         onTyping(false);
         
@@ -194,6 +199,46 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
     if (editContent.trim()) onEditMessage(msgId, editContent.trim());
     setEditingMsgId(null);
     setEditContent('');
+  };
+
+  const handleReply = (msg) => {
+    setReplyingTo(msg);
+    textareaRef.current?.focus();
+  };
+
+  const handleTouchStart = (e, msgId) => {
+    setTouchStart(e.targetTouches[0].clientX);
+    setSwipingMsgId(msgId);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!touchStart) return;
+    const currentTouch = e.targetTouches[0].clientX;
+    const diff = currentTouch - touchStart;
+    
+    // Only handle right swipe
+    if (diff > 50) {
+      const msg = messages.find(m => m._id === swipingMsgId);
+      if (msg) {
+        handleReply(msg);
+        setTouchStart(null);
+        setSwipingMsgId(null);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setTouchStart(null);
+    setSwipingMsgId(null);
+  };
+
+  const scrollToMessage = (msgId) => {
+    const element = document.getElementById(`msg-${msgId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.classList.add('message-highlight-pulse');
+      setTimeout(() => element.classList.remove('message-highlight-pulse'), 2000);
+    }
   };
   const renderHighlightedText = (text) => {
     if (!text) return null;
@@ -331,9 +376,13 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           return (
             <div
               key={msg._id}
-              className={`message-wrapper ${isOwnMessage ? 'own-message' : 'other-message'}`}
+              id={`msg-${msg._id}`}
+              className={`message-wrapper ${isOwnMessage ? 'own-message' : 'other-message'} ${msg.deleted ? 'deleted-message' : ''}`}
               onMouseEnter={() => setHoveredMsgId(msg._id)}
               onMouseLeave={() => setHoveredMsgId(null)}
+              onTouchStart={(e) => handleTouchStart(e, msg._id)}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
             >
               {!isOwnMessage && (
                 <img
@@ -348,25 +397,47 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
                   <div className="message-sender">{msg.sender?.name}</div>
                 )}
 
-                {/* Hover reaction/edit bar */}
-                {isHovered && !isEditing && (
+                {/* Hover reaction/edit/reply/delete bar */}
+                {isHovered && !isEditing && !msg.deleted && (
                   <div className={`reaction-bar ${isOwnMessage ? 'reaction-bar-own' : 'reaction-bar-other'}`}>
                     {QUICK_REACTIONS.map(emoji => (
                       <button key={emoji} className="reaction-btn" onClick={() => onReactMessage(msg._id, emoji)}>
                         {emoji}
                       </button>
                     ))}
+                    <button className="reaction-btn" title="Reply" onClick={() => handleReply(msg)}>
+                      ↩️
+                    </button>
                     {isOwnMessage && (
-                      <button className="reaction-btn edit-trigger-btn" title="Edit message" onClick={() => { setEditingMsgId(msg._id); setEditContent(msg.content || ''); }}>
-                        ✏️
-                      </button>
+                      <>
+                        <button className="reaction-btn edit-trigger-btn" title="Edit" onClick={() => { setEditingMsgId(msg._id); setEditContent(msg.content || ''); }}>
+                          ✏️
+                        </button>
+                        <button className="reaction-btn" title="Delete" onClick={() => { if(window.confirm('Delete this message?')) onDeleteMessage(msg._id); }}>
+                          🗑️
+                        </button>
+                      </>
                     )}
                   </div>
                 )}
 
                 <div className="message-bubble">
                   <div className="message-glow" />
-                  {msg.type === 'image' && msg.mediaUrl && (
+                  
+                  {/* Reply Context */}
+                  {msg.replyTo && (
+                    <div 
+                      className="reply-context-bubble" 
+                      onClick={() => scrollToMessage(msg.replyTo?._id)}
+                    >
+                      <div className="reply-context-user">{msg.replyTo?.sender?.name}</div>
+                      <div className="reply-context-content">
+                        {msg.replyTo?.deleted ? 'This message was deleted' : (msg.replyTo?.content || 'Attachment')}
+                      </div>
+                    </div>
+                  )}
+
+                  {msg.type === 'image' && msg.mediaUrl && !msg.deleted && (
                     <img src={msg.mediaUrl} alt="attachment" className="message-image" />
                   )}
                   {msg.type === 'video' && msg.mediaUrl && (
@@ -393,7 +464,11 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
                       </div>
                     </div>
                   ) : (
-                    msg.content && <span className="message-text">{renderHighlightedText(msg.content)}</span>
+                    msg.deleted ? (
+                      <span className="message-text deleted-text">🚫 This message was deleted</span>
+                    ) : (
+                      msg.content && <span className="message-text">{renderHighlightedText(msg.content)}</span>
+                    )
                   )}
                   {msg.editedAt && !isEditing && <span className="edited-label"> (edited)</span>}
                 </div>
@@ -445,6 +520,15 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
       </div>
 
       <div className="message-input-container">
+        {replyingTo && (
+          <div className="replying-preview">
+            <div className="reply-info">
+              <div className="reply-to-user">Replying to {replyingTo.sender?.name}</div>
+              <div className="reply-to-content">{replyingTo.content || 'Attachment'}</div>
+            </div>
+            <button className="cancel-reply" onClick={() => setReplyingTo(null)}>✕</button>
+          </div>
+        )}
         {attachment && (
           <div className="attachment-preview">
             <span className="attachment-name">{attachment.name}</span>
@@ -1487,6 +1571,95 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           .messages-container::-webkit-scrollbar {
             width: 4px;
           }
+        }
+        .message-highlight-pulse {
+          animation: highlightPulse 2s ease;
+        }
+
+        @keyframes highlightPulse {
+          0% { transform: scale(1); background: rgba(114, 137, 218, 0.2); }
+          50% { transform: scale(1.02); background: rgba(114, 137, 218, 0.4); }
+          100% { transform: scale(1); background: transparent; }
+        }
+
+        /* Reply context in bubble */
+        .reply-context-bubble {
+          background: rgba(0, 0, 0, 0.2);
+          border-left: 3px solid #7289da;
+          padding: 8px 12px;
+          border-radius: 4px;
+          margin-bottom: 8px;
+          cursor: pointer;
+          font-size: 13px;
+          transition: background 0.2s;
+        }
+        .reply-context-bubble:hover {
+          background: rgba(0, 0, 0, 0.3);
+        }
+        .reply-context-user {
+          font-weight: bold;
+          color: #7289da;
+          margin-bottom: 2px;
+        }
+        .reply-context-content {
+          color: #b9bbbe;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 200px;
+        }
+
+        /* Replying to preview above input */
+        .replying-preview {
+          background: #202225;
+          border-left: 4px solid #7289da;
+          padding: 10px 15px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-top-left-radius: 8px;
+          border-top-right-radius: 8px;
+          margin-bottom: 1px;
+          animation: slideUp 0.2s ease;
+        }
+        @keyframes slideUp {
+          from { transform: translateY(10px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        .reply-info {
+          flex: 1;
+          min-width: 0;
+        }
+        .reply-to-user {
+          font-weight: bold;
+          color: #7289da;
+          font-size: 12px;
+          margin-bottom: 2px;
+        }
+        .reply-to-content {
+          color: #8e9297;
+          font-size: 13px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .cancel-reply {
+          background: transparent;
+          border: none;
+          color: #8e9297;
+          cursor: pointer;
+          padding: 5px;
+          font-size: 16px;
+        }
+
+        /* Deleted message styles */
+        .deleted-text {
+          font-style: italic;
+          opacity: 0.7;
+          color: #f04747 !important;
+        }
+        .deleted-message {
+          opacity: 0.8;
         }
       `}</style>
     </div>
