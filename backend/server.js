@@ -225,8 +225,8 @@ const Room = mongoose.model('Room', roomSchema);
 const notifyAdminUserOnline = async (user) => {
   try {
     // Priority: .env ADMIN_EMAIL > hardcoded fallback
-    const adminEmail = process.env.ADMIN_EMAIL || 'sumukeshreddy1@gmail.com';
-    
+    const adminEmail = process.env.ADMIN_EMAIL || 'sumukeshmopuram1@gmail.com';
+
     console.log(`📡 Attempting to notify admin (${adminEmail}) about user: ${user.email}`);
 
     const { data, error } = await resend.emails.send({
@@ -1183,7 +1183,7 @@ io.on('connection', (socket) => {
 
   // Check if user was already online (to avoid duplicate emails on multi-tab/reconnect)
   const wasAlreadyOnline = onlineUsers.has(socket.userId.toString());
-  
+
   onlineUsers.set(socket.userId.toString(), socket.id);
 
   // Notify admin if user is newly online
@@ -1313,7 +1313,7 @@ io.on('connection', (socket) => {
       const { messageId } = data;
       const message = await Message.findById(messageId);
       if (!message) return socket.emit('message-error', { error: 'Message not found' });
-      
+
       if (message.sender.toString() !== socket.userId.toString()) {
         return socket.emit('message-error', { error: 'Not authorized to delete this message' });
       }
