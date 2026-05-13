@@ -1598,47 +1598,52 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
         /* Dropdown Menu Styles */
         .message-menu-container {
           position: absolute;
-          top: 8px;
-          right: 8px;
-          z-index: 20;
+          top: -10px;
+          right: -5px;
+          z-index: 25;
         }
 
         .own-message .message-menu-container {
+          right: -5px;
           left: auto;
-          right: 8px;
+        }
+
+        .other-message .message-menu-container {
+          left: auto;
+          right: -15px;
         }
 
         .message-menu-trigger {
-          background: rgba(0, 0, 0, 0.2);
-          border: none;
-          color: #b9bbbe;
+          background: #2f3136;
+          border: 1px solid #4f545c;
+          color: #fff;
           cursor: pointer;
-          font-size: 10px;
-          width: 20px;
-          height: 20px;
+          font-size: 12px;
+          width: 24px;
+          height: 24px;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           transition: all 0.2s;
-          opacity: 0.7;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.5);
         }
 
         .message-menu-trigger:hover {
-          background: rgba(0, 0, 0, 0.4);
-          color: #fff;
-          opacity: 1;
+          background: #7289da;
+          border-color: #fff;
+          transform: scale(1.1);
         }
 
         .message-actions-dropdown {
           position: absolute;
-          top: 24px;
+          top: 28px;
           background: #18191c;
           border: 1px solid #202225;
           border-radius: 8px;
           padding: 8px;
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-          width: 120px;
+          width: 130px;
           display: flex;
           flex-direction: column;
           gap: 4px;
