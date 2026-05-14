@@ -221,44 +221,7 @@ const Room = mongoose.model('Room', roomSchema);
 
 // ========== UTILITY FUNCTIONS ==========
 
-// Function to notify admin when a user comes online
-const notifyAdminUserOnline = async (user) => {
-  try {
-    // Priority: .env ADMIN_EMAIL > hardcoded fallback
-    const adminEmail = process.env.ADMIN_EMAIL || 'sumukeshmopuram1@gmail.com';
-
-    console.log(`📡 Attempting to notify admin (${adminEmail}) about user: ${user.email}`);
-
-    const { data, error } = await resend.emails.send({
-      from: 'VachoLink <onboarding@resend.dev>',
-      to: adminEmail,
-      subject: `User Online: ${user.name}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: #7289da; margin-bottom: 20px;">User Presence Alert</h2>
-          <p>Hello Admin,</p>
-          <p>The following user has just come online in <strong>VachoLink</strong>:</p>
-          <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #7289da;">
-            <p style="margin: 5px 0;"><strong>Name:</strong> ${user.name}</p>
-            <p style="margin: 5px 0;"><strong>Email:</strong> ${user.email}</p>
-            <p style="margin: 5px 0;"><strong>Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
-          </div>
-          <p>You can view their activities in the admin dashboard.</p>
-          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-          <p style="font-size: 12px; color: #777;">This is an automated notification from VachoLink System.</p>
-        </div>
-      `
-    });
-
-    if (error) {
-      console.error(`❌ Resend Error notifying admin:`, error);
-    } else {
-      console.log(`📧 Admin notified successfully! ID: ${data?.id || 'N/A'} (Sent to: ${adminEmail})`);
-    }
-  } catch (error) {
-    console.error('❌ Failed to send admin notification:', error);
-  }
-};
+// ========== AUTHENTICATION MIDDLEWARE ==========
 
 // ========== AUTHENTICATION MIDDLEWARE ==========
 const authenticateToken = async (req, res, next) => {
@@ -1177,20 +1140,11 @@ io.use(async (socket, next) => {
 });
 
 const onlineUsers = new Map();
-const activeCalls = new Map(); // userId -> targetUserId
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.userId);
 
-  // Check if user was already online (to avoid duplicate emails on multi-tab/reconnect)
-  const wasAlreadyOnline = onlineUsers.has(socket.userId.toString());
-
   onlineUsers.set(socket.userId.toString(), socket.id);
-
-  // Notify admin if user is newly online
-  if (!wasAlreadyOnline && socket.user) {
-    notifyAdminUserOnline(socket.user);
-  }
 
   User.findByIdAndUpdate(socket.userId, {
     online: true,
@@ -1361,83 +1315,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('call-user', (data) => {
-    const { to, offer, type } = data;
-    
-    // Check if target is online
-    if (!onlineUsers.has(to.toString())) {
-      return socket.emit('call-error', { error: 'User is offline' });
-    }
-
-    // Check if target is already in a call
-    if (activeCalls.has(to.toString())) {
-      return socket.emit('call-rejected', { from: to, reason: 'busy' });
-    }
-
-    console.log(`Call initiated from ${socket.userId} to ${to} (${type})`);
-    
-    // Track the call attempt
-    activeCalls.set(socket.userId.toString(), to.toString());
-    activeCalls.set(to.toString(), socket.userId.toString());
-
-    io.to(`user:${to}`).emit('incoming-call', {
-      from: socket.userId,
-      callerName: socket.user.name,
-      callerPhoto: socket.user.profilePhoto,
-      offer,
-      type
-    });
-  });
-
-  socket.on('answer-call', (data) => {
-    const { to, answer } = data;
-    io.to(`user:${to}`).emit('call-answered', {
-      from: socket.userId,
-      answer
-    });
-  });
-
-  socket.on('ice-candidate', (data) => {
-    const { to, candidate } = data;
-    io.to(`user:${to}`).emit('ice-candidate', {
-      from: socket.userId,
-      candidate
-    });
-  });
-
-  socket.on('end-call', (data) => {
-    const { to } = data;
-    activeCalls.delete(socket.userId.toString());
-    if (to) activeCalls.delete(to.toString());
-
-    io.to(`user:${to}`).emit('call-ended', {
-      from: socket.userId
-    });
-  });
-
-  socket.on('reject-call', (data) => {
-    const { to } = data;
-    activeCalls.delete(socket.userId.toString());
-    if (to) activeCalls.delete(to.toString());
-
-    io.to(`user:${to}`).emit('call-rejected', {
-      from: socket.userId
-    });
-  });
-
   socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.userId);
-
-    // If user was in a call, notify the other person
-    if (activeCalls.has(socket.userId.toString())) {
-      const targetId = activeCalls.get(socket.userId.toString());
-      io.to(`user:${targetId}`).emit('call-ended', {
-        from: socket.userId,
-        reason: 'disconnected'
-      });
-      activeCalls.delete(socket.userId.toString());
-      activeCalls.delete(targetId);
-    }
 
     onlineUsers.delete(socket.userId.toString());
 

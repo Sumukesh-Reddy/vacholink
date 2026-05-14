@@ -5,9 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import './styles/App.css';
 import { AuthProvider } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
-import { CallProvider } from './contexts/CallContext';
 import Navbar from './components/Common/Navbar';
-import CallOverlay from './components/Chat/CallOverlay';
 import PrivateRoute from './components/Auth/PrivateRoute';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
@@ -20,11 +18,9 @@ function App() {
   return (
     <AuthProvider>
       <SocketProvider>
-        <CallProvider>
-          <Router>
+        <Router>
             <div className="app">
               <Navbar />
-              <CallOverlay />
               <main className="main-content">
               <Routes>
                 <Route path="/login" element={<Login />} />
@@ -69,7 +65,6 @@ function App() {
             
           </div>
         </Router>
-        </CallProvider>
       </SocketProvider>
     </AuthProvider>
   );
