@@ -1177,6 +1177,7 @@ io.use(async (socket, next) => {
 });
 
 const onlineUsers = new Map();
+const activeCalls = new Map(); // userId -> targetUserId
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.userId);
@@ -1360,10 +1361,25 @@ io.on('connection', (socket) => {
     }
   });
 
-  // WebRTC Call Signaling
   socket.on('call-user', (data) => {
     const { to, offer, type } = data;
+    
+    // Check if target is online
+    if (!onlineUsers.has(to.toString())) {
+      return socket.emit('call-error', { error: 'User is offline' });
+    }
+
+    // Check if target is already in a call
+    if (activeCalls.has(to.toString())) {
+      return socket.emit('call-rejected', { from: to, reason: 'busy' });
+    }
+
     console.log(`Call initiated from ${socket.userId} to ${to} (${type})`);
+    
+    // Track the call attempt
+    activeCalls.set(socket.userId.toString(), to.toString());
+    activeCalls.set(to.toString(), socket.userId.toString());
+
     io.to(`user:${to}`).emit('incoming-call', {
       from: socket.userId,
       callerName: socket.user.name,
@@ -1391,6 +1407,9 @@ io.on('connection', (socket) => {
 
   socket.on('end-call', (data) => {
     const { to } = data;
+    activeCalls.delete(socket.userId.toString());
+    if (to) activeCalls.delete(to.toString());
+
     io.to(`user:${to}`).emit('call-ended', {
       from: socket.userId
     });
@@ -1398,6 +1417,9 @@ io.on('connection', (socket) => {
 
   socket.on('reject-call', (data) => {
     const { to } = data;
+    activeCalls.delete(socket.userId.toString());
+    if (to) activeCalls.delete(to.toString());
+
     io.to(`user:${to}`).emit('call-rejected', {
       from: socket.userId
     });
@@ -1405,6 +1427,17 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.userId);
+
+    // If user was in a call, notify the other person
+    if (activeCalls.has(socket.userId.toString())) {
+      const targetId = activeCalls.get(socket.userId.toString());
+      io.to(`user:${targetId}`).emit('call-ended', {
+        from: socket.userId,
+        reason: 'disconnected'
+      });
+      activeCalls.delete(socket.userId.toString());
+      activeCalls.delete(targetId);
+    }
 
     onlineUsers.delete(socket.userId.toString());
 

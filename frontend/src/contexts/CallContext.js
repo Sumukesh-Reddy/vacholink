@@ -53,24 +53,46 @@ export const CallProvider = ({ children }) => {
     pendingCandidates.current = [];
   }, [localStream, remoteUser, socket]);
 
-  const setupWebRTC = async (isCaller, remoteUserId) => {
-    pc.current = new RTCPeerConnection(servers);
+  const setupWebRTC = async (remoteUserId) => {
+    // Create connection if it doesn't exist
+    if (!pc.current) {
+      pc.current = new RTCPeerConnection(servers);
+    }
     
+    const peer = pc.current;
+
+    // Monitor connection state
+    peer.oniceconnectionstatechange = () => {
+      console.log("ICE Connection State:", peer.iceConnectionState);
+      if (peer.iceConnectionState === 'disconnected' || 
+          peer.iceConnectionState === 'failed' || 
+          peer.iceConnectionState === 'closed') {
+        endCall(false);
+      }
+    };
+
     // Add local tracks to peer connection
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: callType === 'video'
-    });
-    setLocalStream(stream);
-    stream.getTracks().forEach(track => pc.current.addTrack(track, stream));
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: callType === 'video' || (pc.current && pc.current.localDescription && pc.current.localDescription.type === 'offer' && callType === 'video')
+      });
+      setLocalStream(stream);
+      stream.getTracks().forEach(track => peer.addTrack(track, stream));
+    } catch (err) {
+      console.error("Error accessing media devices:", err);
+      toast.error("Could not access camera/microphone");
+      throw err;
+    }
 
     // Handle remote tracks
-    pc.current.ontrack = (event) => {
+    peer.ontrack = (event) => {
+      console.log("Received remote stream");
       setRemoteStream(event.streams[0]);
     };
 
     // Handle ICE candidates
-    pc.current.onicecandidate = (event) => {
+    peer.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit('ice-candidate', {
           to: remoteUserId,
@@ -79,7 +101,7 @@ export const CallProvider = ({ children }) => {
       }
     };
 
-    return pc.current;
+    return peer;
   };
 
   const initiateCall = async (targetUser, type) => {
@@ -88,7 +110,7 @@ export const CallProvider = ({ children }) => {
       setRemoteUser(targetUser);
       setCallStatus('calling');
 
-      const peer = await setupWebRTC(true, targetUser._id);
+      const peer = await setupWebRTC(targetUser._id);
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
 
@@ -106,7 +128,7 @@ export const CallProvider = ({ children }) => {
 
   const answerCall = async () => {
     try {
-      const peer = await setupWebRTC(false, remoteUser._id);
+      const peer = await setupWebRTC(remoteUser._id);
       
       // Process any pending candidates
       if (pendingCandidates.current.length > 0) {
@@ -170,13 +192,28 @@ export const CallProvider = ({ children }) => {
       }
     });
 
-    socket.on('call-ended', () => {
-      toast.info('Call ended');
+    socket.on('call-ended', (data) => {
+      const { reason } = data;
+      if (reason === 'disconnected') {
+        toast.info('Other party disconnected');
+      } else {
+        toast.info('Call ended');
+      }
       endCall(false);
     });
 
-    socket.on('call-rejected', () => {
-      toast.error('Call rejected');
+    socket.on('call-rejected', (data) => {
+      const { reason } = data;
+      if (reason === 'busy') {
+        toast.error('User is busy on another call');
+      } else {
+        toast.error('Call rejected');
+      }
+      endCall(false);
+    });
+
+    socket.on('call-error', (data) => {
+      toast.error(data.error || 'Call error');
       endCall(false);
     });
 
