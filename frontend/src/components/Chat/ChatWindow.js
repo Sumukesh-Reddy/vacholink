@@ -353,6 +353,8 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           </div>
         </div>
         <div className="header-actions">
+          {/* Call buttons hidden for now */}
+          {/* 
           <button
             className="header-action-btn call-btn"
             onClick={() => initiateCall(otherParticipant, 'audio')}
@@ -367,6 +369,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           >
             <FaVideo />
           </button>
+          */}
           <button
             className="delete-button"
             onClick={onDeleteRoom}
