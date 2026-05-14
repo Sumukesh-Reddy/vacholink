@@ -4,27 +4,26 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const cloudinary = require('cloudinary').v2;
-const multer = require('multer');
-const { v4: uuidv4 } = require('uuid');
-const { Resend } = require('resend');
-const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const path = require('path');
-const { OAuth2Client } = require('google-auth-library');
-const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
+
+// Route Imports
+const authRoutes = require('./routes/authRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const userRoutes = require('./routes/userRoutes');
+
+// Model Imports
+const User = require('./models/User');
+const Message = require('./models/Message');
+const Room = require('./models/Room');
 
 dotenv.config();
 
-// Google OAuth client
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
-const signupOtps = new Map();
-
 const app = express();
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false, // Allow loading images from other domains if needed
+}));
 app.set('trust proxy', 1);
 
 // CORS configuration
@@ -42,7 +41,7 @@ const allowedOrigins = Array.from(new Set([
 ]));
 
 const corsOptions = {
-  origin: true, // Allow any origin to connect, reflecting it back
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
@@ -53,18 +52,14 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100
-});
-app.use('/api', limiter);
+// Static files for uploads (if needed)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // MongoDB Connection
 const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
 
 if (!mongoUri) {
-  console.error('❌ MongoDB connection string is missing (MONGODB_URI)');
+  console.error('❌ MongoDB connection string is missing');
   process.exit(1);
 }
 
@@ -75,1035 +70,18 @@ mongoose.connect(mongoUri)
     process.exit(1);
   });
 
-// Cloudinary Configuration
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-// Multer configuration for file uploads
-const storage = multer.diskStorage({
-  filename: function (req, file, cb) {
-    cb(null, uuidv4() + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024
-  },
-  fileFilter: function (req, file, cb) {
-    const filetypes = /jpeg|jpg|png|gif/;
-    const mimetype = filetypes.test(file.mimetype);
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-
-    if (mimetype && extname) {
-      return cb(null, true);
-    }
-    cb(new Error('Only image files are allowed!'));
-  }
-});
-
-const attachmentUpload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 20 * 1024 * 1024 // 20MB for attachments
-  },
-  fileFilter: function (req, file, cb) {
-    const filetypes = /jpeg|jpg|png|gif|mp4|webm|pdf/;
-    const mimetype = filetypes.test(file.mimetype);
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-
-    if (mimetype && extname) {
-      return cb(null, true);
-    }
-    cb(new Error('Only images, videos, and PDFs are allowed!'));
-  }
-});
-
-// Resend Email Client (works on Render - uses HTTP, not blocked SMTP)
-if (!process.env.RESEND_API_KEY) {
-  console.error('❌ RESEND_API_KEY is not set in environment variables');
-}
-const resend = new Resend(process.env.RESEND_API_KEY);
-console.log('📧 Resend client initialized');
-
-// ========== MODELS ==========
-
-// User Model
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, select: false },
-  googleId: { type: String, unique: true, sparse: true },
-  profilePhoto: { type: String, default: '' },
-  bio: { type: String, default: '' },
-  online: { type: Boolean, default: false },
-  lastSeen: { type: Date, default: Date.now },
-  friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  accountType: {
-    type: String,
-    enum: ['user', 'admin'],
-    default: 'user'
-  },
-  isVerified: { type: Boolean, default: false },
-  isGoogleUser: { type: Boolean, default: false },
-  needsPasswordChange: { type: Boolean, default: false },
-  needsProfileCompletion: { type: Boolean, default: false }, // ADD THIS LINE
-  resetToken: String,
-  resetTokenExpires: Date,
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-
-userSchema.pre('save', function () {
-  this.updatedAt = Date.now();
-});
-
-const User = mongoose.model('User', userSchema);
-
-// Message Model
-const messageSchema = new mongoose.Schema({
-  sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  receiver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  content: { type: String, required: false },
-  type: { type: String, enum: ['text', 'image', 'video', 'file'], default: 'text' },
-  mediaUrl: { type: String },
-  mediaName: { type: String },
-  read: { type: Boolean, default: false },
-  readAt: { type: Date },
-  roomId: { type: String, required: true },
-  deleted: { type: Boolean, default: false },
-  deletedAt: { type: Date },
-  editedAt: { type: Date },
-  reactions: [{
-    emoji: { type: String, required: true },
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    userName: { type: String }
-  }],
-  replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
-  createdAt: { type: Date, default: Date.now }
-});
-
-const Message = mongoose.model('Message', messageSchema);
-
-// Chat Room Model
-const roomSchema = new mongoose.Schema({
-  name: { type: String },
-  participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }],
-  isGroup: { type: Boolean, default: false },
-  groupPhoto: { type: String },
-  groupAdmin: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  lastMessage: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-const Room = mongoose.model('Room', roomSchema);
-
-// Ensure indexes
-(async () => {
-  try {
-    const indexes = await User.collection.indexes();
-    const googleIndex = indexes.find((i) => i.name === 'googleId_1');
-    if (googleIndex && !googleIndex.sparse) {
-      await User.collection.dropIndex('googleId_1');
-    }
-    await User.collection.createIndex({ googleId: 1 }, { unique: true, sparse: true });
-  } catch (err) {
-    console.warn('Index sync warning:', err.message);
-  }
-})();
-
-// ========== UTILITY FUNCTIONS ==========
-
-// ========== AUTHENTICATION MIDDLEWARE ==========
-
-// ========== AUTHENTICATION MIDDLEWARE ==========
-const authenticateToken = async (req, res, next) => {
-  try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({ success: false, message: 'Access token required' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId).select('-password');
-
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'User not found' });
-    }
-
-    req.user = user;
-    next();
-  } catch (error) {
-    return res.status(403).json({ success: false, message: 'Invalid or expired token' });
-  }
-};
-
-// ========== AUTH ROUTES ==========
-
-// Utility: generate 6-digit OTP
-const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
-
-// ========== GOOGLE AUTH ROUTES ==========
-
-
-app.post('/api/auth/google', async (req, res) => {
-  try {
-    const { credential } = req.body;
-
-    console.log('🔐 Google auth request received from:', req.headers.origin);
-
-    if (!credential) {
-      return res.status(400).json({
-        success: false,
-        message: 'Google credential is required'
-      });
-    }
-
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-
-    if (!clientId) {
-      console.error('❌ GOOGLE_CLIENT_ID environment variable is not set!');
-      return res.status(500).json({
-        success: false,
-        message: 'Server configuration error: Google Client ID missing'
-      });
-    }
-
-    // Verify Google token
-    const ticket = await googleClient.verifyIdToken({
-      idToken: credential,
-      audience: clientId
-    });
-
-    const payload = ticket.getPayload();
-    const { sub: googleId, email, name, picture } = payload;
-
-    console.log('✅ Google token verified for:', email);
-
-    // Check if user exists
-    let user = await User.findOne({
-      $or: [{ googleId }, { email }]
-    });
-
-    let isNewUser = false;
-
-    if (!user) {
-      // New Google user - create account
-      const displayName = name || email.split('@')[0];
-      let uniqueName = displayName;
-      let counter = 1;
-
-      // Ensure unique name
-      while (await User.findOne({ name: uniqueName })) {
-        uniqueName = `${displayName}${counter}`;
-        counter++;
-      }
-
-      // Create user WITHOUT password for Google users
-      user = new User({
-        googleId,
-        email,
-        name: uniqueName,
-        password: undefined, // No password initially
-        profilePhoto: picture || '',
-        isVerified: true,
-        isGoogleUser: true,
-        needsPasswordChange: true, // User needs to set a password
-        needsProfileCompletion: true, // User needs to complete profile
-        accountType: 'user'
-      });
-
-      await user.save();
-      isNewUser = true;
-      console.log('👤 New Google user created:', email, 'needs profile completion');
-    } else {
-      // Existing user - update online status
-      user.online = true;
-      user.lastSeen = new Date();
-
-      if (!user.googleId) {
-        user.googleId = googleId;
-      }
-
-      await user.save();
-    }
-
-    // Generate token
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    // Get user without password
-    const userResponse = await User.findById(user._id).select('-password');
-
-    console.log(`🎉 Google auth successful for: ${email} (${isNewUser ? 'new' : 'existing'})`);
-    console.log('User needsProfileCompletion:', userResponse.needsProfileCompletion);
-
-    res.json({
-      success: true,
-      message: isNewUser ? 'Google signup successful' : 'Google login successful',
-      token,
-      user: userResponse.toObject(),
-      isNewUser: isNewUser,
-      needsProfileCompletion: userResponse.needsProfileCompletion || false
-    });
-  } catch (error) {
-    console.error('❌ Google auth error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Google authentication failed',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
-// Complete Profile for New Google Users
-
-app.post('/api/auth/complete-profile', authenticateToken, async (req, res) => {
-  try {
-    const { name, password } = req.body;
-
-    console.log('📝 Profile completion request for user:', req.user._id);
-
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    const updates = {};
-
-    // Update name if provided
-    if (name && name.trim()) {
-      const existingName = await User.findOne({
-        name: name.trim(),
-        _id: { $ne: user._id }
-      });
-
-      if (existingName) {
-        return res.status(400).json({
-          success: false,
-          message: 'Display name is already taken, please choose another'
-        });
-      }
-      updates.name = name.trim();
-    }
-
-    // Update password if provided (REQUIRED for Google users)
-    if (password && password.trim()) {
-      if (password.length < 6) {
-        return res.status(400).json({
-          success: false,
-          message: 'Password must be at least 6 characters'
-        });
-      }
-
-      const salt = await bcrypt.genSalt(10);
-      updates.password = await bcrypt.hash(password, salt);
-      updates.needsPasswordChange = false;
-    } else if (user.isGoogleUser && !user.password) {
-      // If Google user and no password provided
-      return res.status(400).json({
-        success: false,
-        message: 'Password is required for Google users'
-      });
-    }
-
-    // Mark profile as completed
-    updates.needsProfileCompletion = false;
-    updates.updatedAt = new Date();
-
-    const updatedUser = await User.findByIdAndUpdate(
-      user._id,
-      updates,
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    console.log('✅ Profile completed for user:', updatedUser.email);
-
-    res.json({
-      success: true,
-      message: 'Profile completed successfully',
-      user: updatedUser
-    });
-  } catch (error) {
-    console.error('❌ Profile completion error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to complete profile'
-    });
-  }
-});
-// ========== EXISTING AUTH ROUTES ==========
-
-// Send OTP for Signup
-app.post('/api/auth/send-otp', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: 'User with this email already exists' });
-    }
-
-    const otp = generateOtp();
-    const expires = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    signupOtps.set(email, { otp, expires });
-
-    await resend.emails.send({
-      from: 'VachoLink <onboarding@resend.dev>',
-      to: email,
-      subject: 'VachoLink - Verify Your Email',
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-          <h2 style="color: #7289da;">Welcome to VachoLink!</h2>
-          <p>Your one-time password (OTP) for registration is:</p>
-          <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #7289da; margin: 20px 0;">
-            ${otp}
-          </div>
-          <p>This OTP will expire in 10 minutes.</p>
-          <p>If you didn't request this, please ignore this email.</p>
-        </div>
-      `
-    });
-    console.log(`📧 OTP sent to ${email}`);
-
-    res.json({ success: true, message: 'OTP sent successfully to your email' });
-  } catch (error) {
-    console.error('Send OTP error:', error);
-    res.status(500).json({ success: false, message: 'Failed to send OTP' });
-  }
-});
-
-// Verify OTP
-app.post('/api/auth/verify-otp', async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-    if (!email || !otp) return res.status(400).json({ success: false, message: 'Email and OTP are required' });
-
-    const storedData = signupOtps.get(email);
-    if (!storedData) {
-      return res.status(400).json({ success: false, message: 'OTP not requested or expired' });
-    }
-
-    if (Date.now() > storedData.expires) {
-      signupOtps.delete(email);
-      return res.status(400).json({ success: false, message: 'OTP has expired' });
-    }
-
-    if (storedData.otp !== otp) {
-      return res.status(400).json({ success: false, message: 'Invalid OTP' });
-    }
-
-    // Mark as verified in the map
-    signupOtps.set(email, { ...storedData, verified: true });
-
-    res.json({ success: true, message: 'OTP verified successfully' });
-  } catch (error) {
-    console.error('Verify OTP error:', error);
-    res.status(500).json({ success: false, message: 'Server error during OTP verification' });
-  }
-});
-
-// Register with Email/Password (now requires OTP)
-app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: 'Missing required fields' });
-    }
-
-    // Verify OTP was previously verified
-    const storedData = signupOtps.get(email);
-    if (!storedData || !storedData.verified) {
-      return res.status(401).json({ success: false, message: 'Email not verified. Please verify OTP first.' });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      isVerified: true
-    });
-
-    // Cleanup OTP
-    signupOtps.delete(email);
-
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    const userResponse = user.toObject();
-    delete userResponse.password;
-
-    res.status(201).json({
-      success: true,
-      message: 'Registration successful',
-      token,
-      user: userResponse
-    });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ success: false, message: 'Registration failed' });
-  }
-});
-
-// Login with Email/Password
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide email and password'
-      });
-    }
-
-    const user = await User.findOne({ email }).select('+password');
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-
-    user.online = true;
-    user.lastSeen = new Date();
-    await user.save();
-
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    const userResponse = user.toObject();
-    delete userResponse.password;
-
-    res.json({
-      success: true,
-      message: 'Login successful',
-      token,
-      user: userResponse
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during login'
-    });
-  }
-});
-
-// Get Current User Profile
-app.get('/api/auth/profile', authenticateToken, async (req, res) => {
-  try {
-    res.json({
-      success: true,
-      user: req.user
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch profile'
-    });
-  }
-});
-
-// Update Profile
-app.put('/api/auth/profile', authenticateToken, async (req, res) => {
-  try {
-    const { name, bio } = req.body;
-
-    const updates = {};
-    if (name) updates.name = name;
-    if (bio !== undefined) updates.bio = bio;
-
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      updates,
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    res.json({
-      success: true,
-      message: 'Profile updated successfully',
-      user
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update profile'
-    });
-  }
-});
-
-// Upload Profile Photo
-app.post('/api/auth/profile/photo', authenticateToken, upload.single('profilePhoto'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No file uploaded'
-      });
-    }
-
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'chat-app-profiles',
-      width: 500,
-      height: 500,
-      crop: 'limit'
-    });
-
-    if (req.user.profilePhoto) {
-      const publicId = req.user.profilePhoto.split('/').pop().split('.')[0];
-      try {
-        await cloudinary.uploader.destroy(`chat-app-profiles/${publicId}`);
-      } catch (cloudinaryError) {
-        console.error('Error deleting old photo:', cloudinaryError);
-      }
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { profilePhoto: result.secure_url },
-      { new: true }
-    ).select('-password');
-
-    res.json({
-      success: true,
-      message: 'Profile photo updated successfully',
-      user,
-      photoUrl: result.secure_url
-    });
-  } catch (error) {
-    console.error('Profile photo upload error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to upload profile photo'
-    });
-  }
-});
-
-// Change Password
-// Change Password
-app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-
-    if (!newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'New password is required'
-      });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'New password must be at least 6 characters'
-      });
-    }
-
-    const user = await User.findById(req.user._id).select('+password');
-
-    // If user is a Google user AND has no password yet
-    if (user.isGoogleUser && !user.password) {
-      // Allow setting first password without current password check
-      const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(newPassword, salt);
-      user.needsPasswordChange = false;
-      await user.save();
-
-      return res.json({
-        success: true,
-        message: 'Password set successfully'
-      });
-    }
-
-    // Regular users must provide current password
-    if (!currentPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Current password is required'
-      });
-    }
-
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Current password is incorrect'
-      });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
-    user.needsPasswordChange = false;
-    await user.save();
-
-    res.json({
-      success: true,
-      message: 'Password changed successfully'
-    });
-  } catch (error) {
-    console.error('Change password error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to change password'
-    });
-  }
-});
-
-// Forgot Password - Initiate
-app.post('/api/auth/forgot-password', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    const resetOtp = generateOtp();
-    user.resetToken = resetOtp;
-    user.resetTokenExpires = Date.now() + 15 * 60 * 1000; // 15 mins
-    await user.save();
-
-    await resend.emails.send({
-      from: 'VachoLink <onboarding@resend.dev>',
-      to: email,
-      subject: 'VachoLink - Password Reset OTP',
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-          <h2 style="color: #7289da;">Password Reset</h2>
-          <p>You requested a password reset. Your OTP is:</p>
-          <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #7289da; margin: 20px 0;">
-            ${resetOtp}
-          </div>
-          <p>This OTP will expire in 15 minutes.</p>
-          <p>If you didn't request this, please ignore this email.</p>
-        </div>
-      `
-    });
-    res.json({ success: true, message: 'Password reset OTP sent to your email' });
-  } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({ success: false, message: 'Failed to process forgot password' });
-  }
-});
-
-// Reset Password - Verify and Update
-app.post('/api/auth/reset-password', async (req, res) => {
-  try {
-    const { email, otp, newPassword } = req.body;
-    if (!email || !otp || !newPassword) {
-      return res.status(400).json({ success: false, message: 'All fields are required' });
-    }
-
-    const user = await User.findOne({
-      email,
-      resetToken: otp,
-      resetTokenExpires: { $gt: Date.now() }
-    });
-
-    if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired reset OTP' });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
-    user.resetToken = undefined;
-    user.resetTokenExpires = undefined;
-    await user.save();
-
-    res.json({ success: true, message: 'Password reset successful. You can now login.' });
-  } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({ success: false, message: 'Failed to reset password' });
-  }
-});
-
-// Logout
-app.post('/api/auth/logout', authenticateToken, async (req, res) => {
-  try {
-    await User.findByIdAndUpdate(req.user._id, {
-      online: false,
-      lastSeen: new Date()
-    });
-
-    res.json({
-      success: true,
-      message: 'Logged out successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Logout failed'
-    });
-  }
-});
-
-// ========== CHAT ROUTES ==========
-
-// Upload Chat Attachment
-app.post('/api/chat/upload', authenticateToken, attachmentUpload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No file provided' });
-    }
-
-    let resourceType = 'auto';
-    if (req.file.mimetype.startsWith('video/')) resourceType = 'video';
-    else if (req.file.mimetype.startsWith('image/')) resourceType = 'image';
-    else resourceType = 'raw';
-
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'chat_attachments',
-      resource_type: resourceType
-    });
-
-    let type = 'file';
-    if (resourceType === 'image') type = 'image';
-    if (resourceType === 'video') type = 'video';
-
-    res.json({
-      success: true,
-      url: result.secure_url,
-      type: type,
-      mediaName: req.file.originalname
-    });
-  } catch (error) {
-    console.error('Attachment upload error:', error);
-    res.status(500).json({ success: false, message: 'Failed to upload attachment' });
-  }
-});
-
-// Get or Create Direct Chat Room
-app.post('/api/chat/room', authenticateToken, async (req, res) => {
-  try {
-    const { participantId } = req.body;
-
-    if (!participantId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Participant ID is required'
-      });
-    }
-
-    const participant = await User.findById(participantId);
-    if (!participant) {
-      return res.status(404).json({
-        success: false,
-        message: 'Participant not found'
-      });
-    }
-
-    let room = await Room.findOne({
-      isGroup: false,
-      participants: {
-        $all: [req.user._id, participantId],
-        $size: 2
-      }
-    }).populate('participants', 'name email profilePhoto online lastSeen');
-
-    if (!room) {
-      room = await Room.create({
-        participants: [req.user._id, participantId],
-        isGroup: false
-      });
-
-      room = await Room.findById(room._id)
-        .populate('participants', 'name email profilePhoto online lastSeen');
-    }
-
-    res.json({
-      success: true,
-      room
-    });
-  } catch (error) {
-    console.error('Create room error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create chat room'
-    });
-  }
-});
-
-// Get User's Chat Rooms
-app.get('/api/chat/rooms', authenticateToken, async (req, res) => {
-  try {
-    const rooms = await Room.find({
-      participants: req.user._id
-    })
-      .populate('participants', 'name email profilePhoto online lastSeen')
-      .populate('lastMessage')
-      .populate('groupAdmin', 'name profilePhoto')
-      .sort({ updatedAt: -1 });
-
-    res.json({
-      success: true,
-      rooms
-    });
-  } catch (error) {
-    console.error('Get rooms error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch chat rooms'
-    });
-  }
-});
-
-// Delete a Chat Room
-app.delete('/api/chat/room/:roomId', authenticateToken, async (req, res) => {
-  try {
-    const { roomId } = req.params;
-
-    const room = await Room.findById(roomId);
-    if (!room) {
-      return res.status(404).json({ success: false, message: 'Room not found' });
-    }
-
-    const isParticipant = room.participants.some(p => p.toString() === req.user._id.toString());
-    if (!isParticipant) {
-      return res.status(403).json({ success: false, message: 'Not authorized to delete this room' });
-    }
-
-    await Message.deleteMany({ roomId });
-    await Room.findByIdAndDelete(roomId);
-
-    res.json({ success: true, message: 'Chat deleted' });
-  } catch (error) {
-    console.error('Delete room error:', error);
-    res.status(500).json({ success: false, message: 'Failed to delete chat' });
-  }
-});
-
-// Get Messages for a Room
-app.get('/api/chat/messages/:roomId', authenticateToken, async (req, res) => {
-  try {
-    const { roomId } = req.params;
-    const { page = 1, limit = 100000 } = req.query;
-
-    const room = await Room.findOne({
-      _id: roomId,
-      participants: req.user._id
-    });
-
-    if (!room) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied'
-      });
-    }
-
-    let messages = await Message.find({
-      roomId
-    })
-      .populate('sender', 'name profilePhoto')
-      .populate({
-        path: 'replyTo',
-        populate: { path: 'sender', select: 'name' }
-      })
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
-
-    // Reverse to get chronological order
-    messages = messages.reverse();
-
-    await Message.updateMany(
-      {
-        roomId,
-        receiver: req.user._id,
-        read: false
-      },
-      {
-        read: true,
-        readAt: new Date()
-      }
-    );
-
-    res.json({
-      success: true,
-      messages,
-      page,
-      total: await Message.countDocuments({ roomId, deleted: false })
-    });
-  } catch (error) {
-    console.error('Get messages error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch messages'
-    });
-  }
-});
-
-// Search Users
-app.get('/api/users/search', authenticateToken, async (req, res) => {
-  try {
-    const { query } = req.query;
-
-    if (!query || query.length < 2) {
-      return res.json({ success: true, users: [] });
-    }
-
-    const users = await User.find({
-      $and: [
-        { _id: { $ne: req.user._id } },
-        {
-          $or: [
-            { name: { $regex: query, $options: 'i' } },
-            { email: { $regex: query, $options: 'i' } }
-          ]
-        }
-      ]
-    })
-      .select('name email profilePhoto online lastSeen bio')
-      .limit(20);
-
-    res.json({
-      success: true,
-      users
-    });
-  } catch (error) {
-    console.error('Search users error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to search users'
-    });
-  }
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/users', userRoutes);
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Server is running',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // ========== WEBSOCKET SETUP ==========
@@ -1119,17 +97,11 @@ const io = new Server(server, {
 io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth.token;
-
-    if (!token) {
-      return next(new Error('Authentication error'));
-    }
+    if (!token) return next(new Error('Authentication error'));
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.userId);
-
-    if (!user) {
-      return next(new Error('User not found'));
-    }
+    if (!user) return next(new Error('User not found'));
 
     socket.userId = user._id;
     socket.user = user;
@@ -1143,16 +115,10 @@ const onlineUsers = new Map();
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.userId);
-
   onlineUsers.set(socket.userId.toString(), socket.id);
 
-  User.findByIdAndUpdate(socket.userId, {
-    online: true,
-    lastSeen: new Date()
-  }).exec();
-
+  User.findByIdAndUpdate(socket.userId, { online: true, lastSeen: new Date() }).exec();
   socket.broadcast.emit('user-online', { userId: socket.userId });
-
   socket.join(`user:${socket.userId}`);
 
   socket.on('join-room', (roomId) => {
@@ -1162,13 +128,9 @@ io.on('connection', (socket) => {
 
   socket.on('send-message', async (data) => {
     try {
-      const { roomId, content, type = 'text', mediaUrl, mediaName } = data;
-
-      // Validate room exists before doing anything
+      const { roomId, content, type = 'text', mediaUrl, mediaName, replyTo } = data;
       const room = await Room.findById(roomId);
-      if (!room) {
-        return socket.emit('message-error', { error: 'Room not found' });
-      }
+      if (!room) return socket.emit('message-error', { error: 'Room not found' });
 
       const message = await Message.create({
         sender: socket.userId,
@@ -1177,7 +139,7 @@ io.on('connection', (socket) => {
         mediaUrl,
         mediaName,
         roomId,
-        replyTo: data.replyTo || null
+        replyTo: replyTo || null
       });
 
       const populatedMessage = await Message.findById(message._id)
@@ -1187,7 +149,6 @@ io.on('connection', (socket) => {
           populate: { path: 'sender', select: 'name' }
         });
 
-      // Update room's last message (reuse already-fetched room)
       room.lastMessage = message._id;
       room.updatedAt = new Date();
       await room.save();
@@ -1195,7 +156,6 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('receive-message', populatedMessage);
       socket.emit('message-sent', populatedMessage);
 
-      // Notify other participants using the room we already have
       room.participants.forEach(participantId => {
         if (participantId.toString() !== socket.userId.toString()) {
           io.to(`user:${participantId}`).emit('new-message-notification', {
@@ -1205,84 +165,67 @@ io.on('connection', (socket) => {
           });
         }
       });
-
     } catch (error) {
       console.error('Send message error:', error);
       socket.emit('message-error', { error: 'Failed to send message' });
     }
   });
 
-  // Edit a message
   socket.on('edit-message', async (data) => {
     try {
       const { messageId, content } = data;
       const message = await Message.findById(messageId);
-      if (!message) return socket.emit('message-error', { error: 'Message not found' });
-      if (message.sender.toString() !== socket.userId.toString()) {
-        return socket.emit('message-error', { error: 'Not authorized to edit this message' });
-      }
+      if (!message || message.sender.toString() !== socket.userId.toString()) return;
+      
       message.content = content;
       message.editedAt = new Date();
       await message.save();
+      
       const updated = await Message.findById(messageId).populate('sender', 'name profilePhoto');
       io.to(message.roomId).emit('message-edited', updated);
     } catch (error) {
-      console.error('Edit message error:', error);
-      socket.emit('message-error', { error: 'Failed to edit message' });
+      console.error('Edit error:', error);
     }
   });
 
-  // React to a message
   socket.on('react-message', async (data) => {
     try {
       const { messageId, emoji } = data;
       const message = await Message.findById(messageId);
-      if (!message) return socket.emit('message-error', { error: 'Message not found' });
+      if (!message) return;
 
-      // Toggle: remove if same user reacted with same emoji, else add/replace
       const existingIdx = message.reactions.findIndex(
         r => r.userId.toString() === socket.userId.toString() && r.emoji === emoji
       );
+      
       if (existingIdx !== -1) {
-        // Remove reaction (toggle off)
         message.reactions.splice(existingIdx, 1);
       } else {
-        // Remove any previous reaction by this user on this message, then add new
-        message.reactions = message.reactions.filter(
-          r => r.userId.toString() !== socket.userId.toString()
-        );
+        message.reactions = message.reactions.filter(r => r.userId.toString() !== socket.userId.toString());
         message.reactions.push({ emoji, userId: socket.userId, userName: socket.user.name });
       }
+      
       await message.save();
       const updated = await Message.findById(messageId).populate('sender', 'name profilePhoto');
       io.to(message.roomId).emit('message-reacted', updated);
     } catch (error) {
-      console.error('React message error:', error);
-      socket.emit('message-error', { error: 'Failed to react to message' });
+      console.error('React error:', error);
     }
   });
 
-  // Delete a message
   socket.on('delete-message', async (data) => {
     try {
       const { messageId } = data;
       const message = await Message.findById(messageId);
-      if (!message) return socket.emit('message-error', { error: 'Message not found' });
-
-      if (message.sender.toString() !== socket.userId.toString()) {
-        return socket.emit('message-error', { error: 'Not authorized to delete this message' });
-      }
+      if (!message || message.sender.toString() !== socket.userId.toString()) return;
 
       message.deleted = true;
       message.deletedAt = new Date();
-      // We don't necessarily clear content here to allow "undo" or just keep history, 
-      // but we mark it as deleted so the frontend shows the placeholder.
       await message.save();
 
       io.to(message.roomId).emit('message-deleted', { messageId, roomId: message.roomId });
     } catch (error) {
-      console.error('Delete message error:', error);
-      socket.emit('message-error', { error: 'Failed to delete message' });
+      console.error('Delete error:', error);
     }
   });
 
@@ -1295,87 +238,28 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('mark-read', async (data) => {
-    try {
-      const { messageId } = data;
-
-      await Message.findByIdAndUpdate(messageId, {
-        read: true,
-        readAt: new Date()
-      });
-
-      const message = await Message.findById(messageId);
-      io.to(message.roomId).emit('message-read', {
-        messageId,
-        userId: socket.userId,
-        readAt: new Date()
-      });
-    } catch (error) {
-      console.error('Mark read error:', error);
-    }
-  });
-
   socket.on('disconnect', async () => {
-    console.log('User disconnected:', socket.userId);
-
     onlineUsers.delete(socket.userId.toString());
-
-    await User.findByIdAndUpdate(socket.userId, {
-      online: false,
-      lastSeen: new Date()
-    });
-
+    await User.findByIdAndUpdate(socket.userId, { online: false, lastSeen: new Date() });
     socket.broadcast.emit('user-offline', { userId: socket.userId });
   });
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Server is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-// Function to keep Render service live by self-pinging
+// Keep Render Live
 const keepRenderLive = () => {
-  let i = 0;
-  const interval = setInterval(() => {
-    if (i <= 10) {
-      console.log(`Keep-Alive Heartbeat: ${i}`);
-      i++;
-    } else {
-      i = 0;
-      console.log('Keep-Alive Heartbeat Reset');
-    }
-
-    // Self-ping logic to prevent Render spin-down
-    // Detect public URL from Render environment variables or fallback to localhost
-    const publicUrl = process.env.RENDER_EXTERNAL_URL ||
-      (process.env.RENDER_EXTERNAL_HOSTNAME ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME}` : `http://localhost:${PORT}`);
-
+  setInterval(() => {
+    const publicUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
     const client = publicUrl.startsWith('https') ? require('https') : http;
-
     client.get(`${publicUrl}/health`, (res) => {
-      res.on('data', () => { }); // Consume response
+      res.on('data', () => { });
     }).on('error', (err) => {
-      console.error('Keep-Render-Live heartbeat failed:', err.message);
+      console.error('Keep-alive failed:', err.message);
     });
-  }, 1 * 60 * 1000); // Every 1 minutes
-
-  return interval;
+  }, 5 * 60 * 1000); // Every 5 minutes
 };
 
-// Start server
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 WebSocket server ready`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Allowed origins: ${allowedOrigins.join(', ') || 'None'}`);
-
-  // Start the keep-alive loop
   keepRenderLive();
 });
