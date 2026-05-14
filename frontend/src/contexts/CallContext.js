@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from './SocketContext';
-import { useAuth } from './AuthContext';
 import { toast } from 'react-toastify';
 
 const CallContext = createContext({});
@@ -18,7 +17,6 @@ const servers = {
 
 export const CallProvider = ({ children }) => {
   const { socket } = useSocket();
-  const { user } = useAuth();
   
   const [callStatus, setCallStatus] = useState('idle'); // idle, calling, incoming, connected, rejected
   const [callType, setCallType] = useState(null); // audio, video
@@ -31,7 +29,7 @@ export const CallProvider = ({ children }) => {
   const pc = useRef(null);
   const pendingCandidates = useRef([]);
 
-  const endCall = (notify = true) => {
+  const endCall = useCallback((notify = true) => {
     if (pc.current) {
       pc.current.close();
       pc.current = null;
@@ -53,7 +51,7 @@ export const CallProvider = ({ children }) => {
     setIsMuted(false);
     setIsCameraOff(false);
     pendingCandidates.current = [];
-  };
+  }, [localStream, remoteUser, socket]);
 
   const setupWebRTC = async (isCaller, remoteUserId) => {
     pc.current = new RTCPeerConnection(servers);
@@ -189,7 +187,7 @@ export const CallProvider = ({ children }) => {
       socket.off('call-ended');
       socket.off('call-rejected');
     };
-  }, [socket]);
+  }, [socket, endCall]);
 
   const toggleMute = () => {
     if (localStream) {
