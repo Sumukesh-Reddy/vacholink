@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCall } from '../../contexts/CallContext';
 import { toast } from 'react-toastify';
 import FriendProfileModal from '../Friends/FriendProfileModal';
+import { FaPhone, FaVideo } from 'react-icons/fa';
 
 const QUICK_REACTIONS = ['👍', '💞', '😂', '😮', '😢', '😡', '🔥', '🤭', '🐼'];
 const EMOJIS = [
@@ -50,6 +52,7 @@ const EMOJIS = [
 
 const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onBack, isMobile, typingUser, onEditMessage, onReactMessage, onDeleteMessage }) => {
   const { user } = useAuth();
+  const { initiateCall } = useCall();
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [attachment, setAttachment] = useState(null);
@@ -350,6 +353,20 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           </div>
         </div>
         <div className="header-actions">
+          <button
+            className="header-action-btn call-btn"
+            onClick={() => initiateCall(otherParticipant, 'audio')}
+            title="Audio Call"
+          >
+            <FaPhone />
+          </button>
+          <button
+            className="header-action-btn call-btn"
+            onClick={() => initiateCall(otherParticipant, 'video')}
+            title="Video Call"
+          >
+            <FaVideo />
+          </button>
           <button
             className="delete-button"
             onClick={onDeleteRoom}
@@ -832,6 +849,39 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           display: flex;
           gap: 8px;
           flex-shrink: 0;
+          align-items: center;
+        }
+
+        .header-action-btn {
+          background: rgba(255, 255, 255, 0.05);
+          border: none;
+          color: #8e9297;
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-size: 18px;
+          flex-shrink: 0;
+        }
+
+        .header-action-btn:hover {
+          background: rgba(114, 137, 218, 0.15);
+          color: #7289da;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .call-btn {
+          color: #3ba55d;
+        }
+
+        .call-btn:hover {
+          color: #43b581;
+          background: rgba(59, 165, 93, 0.1);
         }
 
         .delete-button {

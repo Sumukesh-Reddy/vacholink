@@ -1360,6 +1360,49 @@ io.on('connection', (socket) => {
     }
   });
 
+  // WebRTC Call Signaling
+  socket.on('call-user', (data) => {
+    const { to, offer, type } = data;
+    console.log(`Call initiated from ${socket.userId} to ${to} (${type})`);
+    io.to(`user:${to}`).emit('incoming-call', {
+      from: socket.userId,
+      callerName: socket.user.name,
+      callerPhoto: socket.user.profilePhoto,
+      offer,
+      type
+    });
+  });
+
+  socket.on('answer-call', (data) => {
+    const { to, answer } = data;
+    io.to(`user:${to}`).emit('call-answered', {
+      from: socket.userId,
+      answer
+    });
+  });
+
+  socket.on('ice-candidate', (data) => {
+    const { to, candidate } = data;
+    io.to(`user:${to}`).emit('ice-candidate', {
+      from: socket.userId,
+      candidate
+    });
+  });
+
+  socket.on('end-call', (data) => {
+    const { to } = data;
+    io.to(`user:${to}`).emit('call-ended', {
+      from: socket.userId
+    });
+  });
+
+  socket.on('reject-call', (data) => {
+    const { to } = data;
+    io.to(`user:${to}`).emit('call-rejected', {
+      from: socket.userId
+    });
+  });
+
   socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.userId);
 
