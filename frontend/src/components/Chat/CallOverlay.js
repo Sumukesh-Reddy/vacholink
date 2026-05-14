@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useCall } from '../../contexts/CallContext';
-import { FaPhone, FaVideo, FaPhoneSlash, FaMicrophone, FaMicrophoneSlash, FaVideoSlash, FaTimes } from 'react-icons/fa';
+import { FaPhone, FaVideo, FaPhoneSlash, FaMicrophone, FaMicrophoneSlash, FaVideoSlash } from 'react-icons/fa';
 import '../../styles/CallOverlay.css';
 
 const CallOverlay = () => {
