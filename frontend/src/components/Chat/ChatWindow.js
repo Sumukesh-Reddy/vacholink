@@ -66,7 +66,8 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
   const [stars, setStars] = useState([]);
   const [showFriendProfile, setShowFriendProfile] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
-  const [touchStart, setTouchStart] = useState(null);
+  const [dragStartX, setDragStartX] = useState(null);
+  const [dragOffset, setDragOffset] = useState(0);
   const [swipingMsgId, setSwipingMsgId] = useState(null);
   const [activeMenuId, setActiveMenuId] = useState(null);
 
@@ -210,31 +211,43 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
     textareaRef.current?.focus();
   };
 
-  const handleTouchStart = (e, msgId) => {
-    setTouchStart(e.targetTouches[0].clientX);
+  const handleDragStart = (e, msgId) => {
+    const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+    setDragStartX(clientX);
     setSwipingMsgId(msgId);
+    setDragOffset(0);
   };
 
-  const handleTouchMove = (e) => {
-    if (!touchStart) return;
-    const currentTouch = e.targetTouches[0].clientX;
-    const diff = currentTouch - touchStart;
+  const handleDragMove = (e) => {
+    if (dragStartX === null || swipingMsgId === null) return;
+    const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+    let diff = clientX - dragStartX;
     
-    // Only handle right swipe
-    if (diff > 50) {
+    // Only allow right swipe for reply
+    if (diff < 0) diff = 0;
+    // Rubber band effect after 80px
+    if (diff > 80) diff = 80 + (diff - 80) * 0.3;
+    
+    setDragOffset(diff);
+  };
+
+  const handleDragEnd = () => {
+    if (dragOffset > 60 && swipingMsgId) {
       const msg = messages.find(m => m._id === swipingMsgId);
-      if (msg) {
+      if (msg && !msg.deleted) {
         handleReply(msg);
-        setTouchStart(null);
-        setSwipingMsgId(null);
+        // Haptic feedback if available
+        if (window.navigator.vibrate) window.navigator.vibrate(10);
       }
     }
+    setDragStartX(null);
+    setSwipingMsgId(null);
+    setDragOffset(0);
   };
 
-  const handleTouchEnd = () => {
-    setTouchStart(null);
-    setSwipingMsgId(null);
-  };
+  const handleTouchStart = (e, msgId) => handleDragStart(e, msgId);
+  const handleTouchMove = (e) => handleDragMove(e);
+  const handleTouchEnd = () => handleDragEnd();
 
   const scrollToMessage = (msgId) => {
     const element = document.getElementById(`msg-${msgId}`);
@@ -381,22 +394,46 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
             <div
               key={msg._id}
               id={`msg-${msg._id}`}
-              className={`message-wrapper ${isOwnMessage ? 'own-message' : 'other-message'} ${msg.deleted ? 'deleted-message' : ''}`}
+              className={`message-wrapper ${isOwnMessage ? 'own-message' : 'other-message'} ${msg.deleted ? 'deleted-message' : ''} ${swipingMsgId === msg._id ? 'is-swiping' : ''}`}
               onMouseEnter={() => setHoveredMsgId(msg._id)}
-              onMouseLeave={() => setHoveredMsgId(null)}
+              onMouseLeave={() => { setHoveredMsgId(null); if (swipingMsgId === msg._id) handleDragEnd(); }}
               onTouchStart={(e) => handleTouchStart(e, msg._id)}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
+              onMouseDown={(e) => handleDragStart(e, msg._id)}
+              onMouseMove={(e) => swipingMsgId === msg._id && handleDragMove(e)}
+              onMouseUp={() => swipingMsgId === msg._id && handleDragEnd()}
             >
+              {/* Swipe Reply Indicator */}
+              {swipingMsgId === msg._id && dragOffset > 10 && (
+                <div className="swipe-reply-indicator" style={{ 
+                  opacity: Math.min(dragOffset / 60, 1),
+                  transform: `scale(${Math.min(dragOffset / 60, 1)})`,
+                  left: isOwnMessage ? 'auto' : '-40px',
+                  right: isOwnMessage ? '-40px' : 'auto'
+                }}>
+                  ↩️
+                </div>
+              )}
               {!isOwnMessage && (
                 <img
                   src={msg.sender?.profilePhoto || `https://ui-avatars.com/api/?name=${msg.sender?.name}&background=7289da&color=fff`}
                   alt={msg.sender?.name}
                   className="message-avatar"
+                  style={{
+                    transform: swipingMsgId === msg._id ? `translateX(${dragOffset}px)` : 'none',
+                    transition: swipingMsgId === msg._id ? 'none' : 'transform 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28)'
+                  }}
                 />
               )}
 
-              <div className="message-content-wrapper">
+              <div 
+                className="message-content-wrapper"
+                style={{
+                  transform: swipingMsgId === msg._id ? `translateX(${dragOffset}px)` : 'none',
+                  transition: swipingMsgId === msg._id ? 'none' : 'transform 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28)'
+                }}
+              >
                 {!isOwnMessage && (
                   <div className="message-sender">{msg.sender?.name}</div>
                 )}
@@ -1779,6 +1816,31 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
         }
         .deleted-message {
           opacity: 0.8;
+        }
+
+        /* Swipe to reply styles */
+        .is-swiping {
+          cursor: grabbing;
+          user-select: none;
+        }
+
+        .swipe-reply-indicator {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          background: rgba(114, 137, 218, 0.2);
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          color: white;
+          pointer-events: none;
+          z-index: 0;
+          box-shadow: 0 0 10px rgba(114, 137, 218, 0.3);
+          transition: background 0.2s;
         }
       `}</style>
     </div>
