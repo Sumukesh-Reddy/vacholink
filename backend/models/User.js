@@ -26,15 +26,15 @@ const userSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
-userSchema.pre('save', function (next) {
+userSchema.pre('save', function() {
   this.updatedAt = Date.now();
-  next();
 });
 
 // Ensure indexes
+const User = mongoose.model('User', userSchema);
+
 (async () => {
   try {
-    const User = mongoose.model('User', userSchema);
     const indexes = await User.collection.indexes();
     const googleIndex = indexes.find((i) => i.name === 'googleId_1');
     if (googleIndex && !googleIndex.sparse) {
@@ -46,4 +46,4 @@ userSchema.pre('save', function (next) {
   }
 })();
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = User;

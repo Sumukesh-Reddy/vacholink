@@ -22,7 +22,7 @@ dotenv.config();
 
 const app = express();
 app.use(helmet({
-  crossOriginResourcePolicy: false, // Allow loading images from other domains if needed
+  crossOriginResourcePolicy: false,
 }));
 app.set('trust proxy', 1);
 
