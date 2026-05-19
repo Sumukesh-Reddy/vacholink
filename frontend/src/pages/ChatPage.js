@@ -86,6 +86,15 @@ const ChatPage = () => {
     return () => clearInterval(cometInterval);
   }, [isMobile]);
 
+  const fetchMessages = useCallback(async (roomId) => {
+    try {
+      const response = await axios.get(`${API_URL}/api/chat/messages/${roomId}`);
+      setMessages(response.data.messages);
+    } catch (error) {
+      toast.error('Failed to load messages');
+    }
+  }, []);
+
   const fetchChatRooms = useCallback(async () => {
     try {
       const response = await axios.get(`${API_URL}/api/chat/rooms`);
@@ -100,7 +109,7 @@ const ChatPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedRoom, isMobile]);
+  }, [selectedRoom, isMobile, fetchMessages]);
 
   useEffect(() => {
     fetchChatRooms();
@@ -164,14 +173,6 @@ const ChatPage = () => {
     };
   }, [socket, selectedRoom]);
 
-  const fetchMessages = async (roomId) => {
-    try {
-      const response = await axios.get(`${API_URL}/api/chat/messages/${roomId}`);
-      setMessages(response.data.messages);
-    } catch (error) {
-      toast.error('Failed to load messages');
-    }
-  };
 
   const handleSelectRoom = (room) => {
     setSelectedRoom(room);
