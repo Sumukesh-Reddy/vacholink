@@ -12,6 +12,10 @@ const storage = multer.diskStorage({
   }
 });
 
+// Memory storage for direct Cloudinary uploads
+const memoryStorage = multer.memoryStorage();
+
+
 // File filters
 const imageFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) {
@@ -38,7 +42,7 @@ const attachmentFilter = (req, file, cb) => {
 
 // Multer instances
 const uploadProfile = multer({
-  storage: storage,
+  storage: memoryStorage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: imageFilter
 });
@@ -49,7 +53,14 @@ const uploadAttachment = multer({
   fileFilter: attachmentFilter
 });
 
+const uploadToMemory = multer({
+  storage: memoryStorage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter: attachmentFilter
+});
+
 module.exports = {
   uploadProfile,
-  uploadAttachment
+  uploadAttachment,
+  uploadToMemory
 };

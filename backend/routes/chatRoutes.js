@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const authenticateToken = require('../middleware/authMiddleware');
-const { uploadAttachment } = require('../middleware/upload');
-const { uploadToCloudinary } = require('../utils/cloudinary');
+const { uploadToMemory } = require('../middleware/upload');
+const cloudinary = require('../config/cloudinary');
 const Room = require('../models/Room');
 const Message = require('../models/Message');
 const User = require('../models/User');
 
 // Upload Chat Attachment
-router.post('/upload', authenticateToken, uploadAttachment.single('file'), async (req, res) => {
+router.post('/upload', authenticateToken, uploadToMemory.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file provided' });
@@ -20,7 +20,22 @@ router.post('/upload', authenticateToken, uploadAttachment.single('file'), async
     else if (req.file.mimetype === 'application/pdf') resourceType = 'raw';
     else resourceType = 'raw';
 
-    const result = await uploadToCloudinary(req.file.path, 'chat_attachments', resourceType);
+    const uploadPromise = new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'chat_attachments',
+          resource_type: resourceType
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      
+      uploadStream.end(req.file.buffer);
+    });
+
+    const result = await uploadPromise;
 
     let type = 'file';
     if (req.file.mimetype.startsWith('image/')) type = 'image';

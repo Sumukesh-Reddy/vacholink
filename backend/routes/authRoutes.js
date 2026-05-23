@@ -6,7 +6,8 @@ const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const authenticateToken = require('../middleware/authMiddleware');
 const { uploadProfile } = require('../middleware/upload');
-const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinary');
+const { deleteFromCloudinary } = require('../utils/cloudinary');
+const cloudinary = require('../config/cloudinary');
 const { Resend } = require('resend');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -195,7 +196,23 @@ router.post('/reset-password', async (req, res) => {
 router.post('/profile/photo', authenticateToken, uploadProfile.single('profilePhoto'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
-    const result = await uploadToCloudinary(req.file.path, 'chat-app-profiles');
+
+    const uploadPromise = new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'chat-app-profiles',
+          resource_type: 'image'
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      
+      uploadStream.end(req.file.buffer);
+    });
+
+    const result = await uploadPromise;
 
     if (req.user.profilePhoto && req.user.profilePhoto.includes('cloudinary')) {
       const publicId = req.user.profilePhoto.split('/').pop().split('.')[0];
