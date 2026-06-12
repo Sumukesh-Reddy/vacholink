@@ -505,40 +505,40 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
                   </div>
                 )}
 
-                {/* Action Menu Trigger (Small Arrow) - OUTSIDE BUBBLE */}
-                {isHovered && !isEditing && !msg.deleted && (
-                  <div className="message-menu-container">
-                    <button 
-                      className="message-menu-trigger" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveMenuId(activeMenuId === msg._id ? null : msg._id);
-                      }}
-                    >
-                      ▼
-                    </button>
-                    {activeMenuId === msg._id && (
-                      <div className={`message-actions-dropdown ${isOwnMessage ? 'dropdown-own' : 'dropdown-other'}`}>
-                        <button onClick={() => { handleReply(msg); setActiveMenuId(null); }}>
-                          <span className="menu-icon">↩️</span> Reply
-                        </button>
-                        {isOwnMessage && (
-                          <>
-                            <button onClick={() => { setEditingMsgId(msg._id); setEditContent(msg.content || ''); setActiveMenuId(null); }}>
-                              <span className="menu-icon">✏️</span> Edit
-                            </button>
-                            <button className="delete-option" onClick={() => { if(window.confirm('Delete this message?')) onDeleteMessage(msg._id); setActiveMenuId(null); }}>
-                              <span className="menu-icon">🗑️</span> Delete
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 <div className="message-bubble">
                   <div className="message-glow" />
+
+                  {/* Action Menu Trigger (Small Arrow) - INSIDE BUBBLE */}
+                  {isHovered && !isEditing && !msg.deleted && (
+                    <div className="message-menu-container">
+                      <button 
+                        className="message-menu-trigger" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuId(activeMenuId === msg._id ? null : msg._id);
+                        }}
+                      >
+                        <span style={{ position: 'relative', top: '-1px' }}>▼</span>
+                      </button>
+                      {activeMenuId === msg._id && (
+                        <div className={`message-actions-dropdown ${isOwnMessage ? 'dropdown-own' : 'dropdown-other'}`}>
+                          <button onClick={() => { handleReply(msg); setActiveMenuId(null); }}>
+                            <span className="menu-icon">↩️</span> Reply
+                          </button>
+                          {isOwnMessage && (
+                            <>
+                              <button onClick={() => { setEditingMsgId(msg._id); setEditContent(msg.content || ''); setActiveMenuId(null); }}>
+                                <span className="menu-icon">✏️</span> Edit
+                              </button>
+                              <button className="delete-option" onClick={() => { if(window.confirm('Delete this message?')) onDeleteMessage(msg._id); setActiveMenuId(null); }}>
+                                <span className="menu-icon">🗑️</span> Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   
                   {/* Reply Context */}
                   {msg.replyTo && (
@@ -587,6 +587,20 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
                     )
                   )}
                   {msg.editedAt && !isEditing && <span className="edited-label"> (edited)</span>}
+                  
+                  <div className="message-info-inline">
+                    <span className="message-time">
+                      {isToday
+                        ? messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : messageDate.toLocaleDateString() + ' ' + messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      }
+                    </span>
+                    {isOwnMessage && (
+                      <span className={`read-indicator ${msg.read ? 'seen' : (msg.delivered ? 'delivered' : 'sent')}`}>
+                        {msg.read ? '✓✓' : (msg.delivered ? '✓✓' : '✓')}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Reactions chips */}
@@ -603,17 +617,6 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
                   </div>
                 )}
 
-                <div className="message-info">
-                  {isToday
-                    ? messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : messageDate.toLocaleDateString() + ' ' + messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                  }
-                  {isOwnMessage && (
-                    <span className={`read-indicator ${msg.read ? 'seen' : (msg.delivered ? 'delivered' : 'sent')}`}>
-                      {msg.read ? '✓✓' : (msg.delivered ? '✓✓' : '✓')}
-                    </span>
-                  )}
-                </div>
               </div>
             </div>
             </React.Fragment>
@@ -1066,7 +1069,6 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           border-bottom-right-radius: 18px;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
           position: relative;
-          overflow: hidden;
         }
 
         .own-message .message-bubble {
@@ -1084,6 +1086,8 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           bottom: 0;
           background: radial-gradient(circle at 70% 30%, rgba(255, 255, 255, 0.05), transparent 70%);
           pointer-events: none;
+          border-radius: inherit;
+          overflow: hidden;
         }
 
         .own-message .message-glow {
@@ -1118,27 +1122,36 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           transform: scale(1.1);
         }
 
-        .message-info {
-          font-size: 11px;
-          color: #8e9297;
-          margin-top: 4px;
-          text-align: left;
+        .message-bubble::after {
+          content: "";
+          display: table;
+          clear: both;
+        }
+
+        .message-info-inline {
+          float: right;
+          margin-top: 8px;
+          margin-left: 12px;
+          margin-bottom: -4px;
+          margin-right: -4px;
           display: flex;
           align-items: center;
           gap: 4px;
-          justify-content: flex-start;
-          text-shadow: 0 1px 1px rgba(0,0,0,0.3);
+          font-size: 11px;
+          color: rgba(255, 255, 255, 0.6);
+          line-height: 1;
         }
 
-        .own-message .message-info {
-          text-align: right;
-          justify-content: flex-end;
+        .other-message .message-info-inline {
+          color: rgba(255, 255, 255, 0.5);
         }
 
         .read-indicator {
           font-size: 12px;
-          margin-left: 4px;
-          color: #8e9297;
+          margin-left: 2px;
+          color: rgba(255, 255, 255, 0.6);
+          display: flex;
+          align-items: center;
         }
         
         .read-indicator.seen {
@@ -1629,7 +1642,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
             max-height: 250px;
           }
 
-          .message-info {
+          .message-info-inline {
             font-size: 10px;
           }
 
@@ -1761,56 +1774,56 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
         /* Dropdown Menu Styles */
         .message-menu-container {
           position: absolute;
-          top: 0px;
-          right: -10px;
+          top: 6px;
+          right: 6px;
           z-index: 30;
         }
 
         .own-message .message-menu-container {
-          right: -10px;
+          right: 6px;
           left: auto;
         }
 
         .other-message .message-menu-container {
-          right: -30px;
+          right: 6px;
           left: auto;
         }
 
         .message-menu-trigger {
-          background: #2f3136;
-          border: 1px solid #4f545c;
-          color: #fff;
+          background: radial-gradient(circle at center, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%);
+          border: none;
+          color: rgba(255, 255, 255, 0.8);
           cursor: pointer;
-          font-size: 12px;
-          width: 24px;
-          height: 24px;
+          font-size: 10px;
+          width: 22px;
+          height: 22px;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           transition: all 0.2s;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+          backdrop-filter: blur(1px);
+          opacity: 0.7;
         }
 
         .message-menu-trigger:hover {
-          background: #7289da;
-          border-color: #fff;
-          transform: scale(1.1);
+          opacity: 1;
+          background: rgba(0,0,0,0.6);
         }
 
         .message-actions-dropdown {
           position: absolute;
-          top: 28px;
-          background: #18191c;
-          border: 1px solid #202225;
+          top: 26px;
+          background: #232428;
+          border: 1px solid #1e1f22;
           border-radius: 8px;
-          padding: 8px;
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-          width: 130px;
+          padding: 6px 0;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+          width: 140px;
           display: flex;
           flex-direction: column;
-          gap: 4px;
-          animation: dropdownIn 0.15s ease;
+          gap: 0px;
+          animation: dropdownIn 0.15s cubic-bezier(0.2, 0, 0, 1);
         }
 
         .dropdown-own {
@@ -1822,23 +1835,24 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
         }
 
         @keyframes dropdownIn {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; transform: scale(0.95) translateY(-5px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
         }
 
         .message-actions-dropdown button {
           background: transparent;
           border: none;
-          color: #dcddde;
-          padding: 8px 12px;
+          color: #dbdee1;
+          padding: 8px 16px;
           text-align: left;
-          font-size: 13px;
+          font-size: 14px;
           cursor: pointer;
-          border-radius: 4px;
+          border-radius: 0;
           display: flex;
           align-items: center;
-          gap: 10px;
-          transition: background 0.2s;
+          gap: 12px;
+          transition: background 0.1s;
+          width: 100%;
         }
 
         .message-actions-dropdown button:hover {
@@ -1846,8 +1860,13 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           color: #fff;
         }
 
+        .message-actions-dropdown .delete-option {
+          color: #ed4245;
+        }
+
         .message-actions-dropdown .delete-option:hover {
           background: #ed4245;
+          color: #fff;
         }
 
         .menu-icon {
