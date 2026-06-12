@@ -520,22 +520,29 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
                       >
                         <span style={{ position: 'relative', top: '-1px' }}>▼</span>
                       </button>
-                      {activeMenuId === msg._id && (
-                        <div className={`message-actions-dropdown ${isOwnMessage ? 'dropdown-own' : 'dropdown-other'}`}>
-                          <button onClick={() => { handleReply(msg); setActiveMenuId(null); }}>
-                            <span className="menu-icon">↩️</span> Reply
+                    </div>
+                  )}
+                  {activeMenuId === msg._id && (
+                    <div className={`message-actions-dropdown ${isOwnMessage ? 'dropdown-own' : 'dropdown-other'}`}>
+                      <button onClick={() => { handleReply(msg); setActiveMenuId(null); }}>
+                        Reply
+                      </button>
+                      <button onClick={() => { 
+                        navigator.clipboard.writeText(msg.content || ''); 
+                        setActiveMenuId(null); 
+                        toast.success('Message copied'); 
+                      }}>
+                        Copy Message
+                      </button>
+                      {isOwnMessage && (
+                        <>
+                          <button onClick={() => { setEditingMsgId(msg._id); setEditContent(msg.content || ''); setActiveMenuId(null); }}>
+                            Edit
                           </button>
-                          {isOwnMessage && (
-                            <>
-                              <button onClick={() => { setEditingMsgId(msg._id); setEditContent(msg.content || ''); setActiveMenuId(null); }}>
-                                <span className="menu-icon">✏️</span> Edit
-                              </button>
-                              <button className="delete-option" onClick={() => { if(window.confirm('Delete this message?')) onDeleteMessage(msg._id); setActiveMenuId(null); }}>
-                                <span className="menu-icon">🗑️</span> Delete
-                              </button>
-                            </>
-                          )}
-                        </div>
+                          <button className="delete-option" onClick={() => { if(window.confirm('Delete this message?')) onDeleteMessage(msg._id); setActiveMenuId(null); }}>
+                            Delete
+                          </button>
+                        </>
                       )}
                     </div>
                   )}
@@ -1813,7 +1820,8 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
 
         .message-actions-dropdown {
           position: absolute;
-          top: 26px;
+          top: calc(100% + 5px);
+          z-index: 40;
           background: #232428;
           border: 1px solid #1e1f22;
           border-radius: 8px;
