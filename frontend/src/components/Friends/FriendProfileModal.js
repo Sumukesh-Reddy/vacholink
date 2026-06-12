@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const FriendProfileModal = ({ user, onClose }) => {
+const FriendProfileModal = ({ user, messages = [], onClose }) => {
   const [stars, setStars] = useState([]);
   const modalRef = useRef();
 
@@ -23,6 +23,8 @@ const FriendProfileModal = ({ user, onClose }) => {
   }, []);
 
   if (!user) return null;
+
+  const sharedMedia = messages.filter(msg => (msg.type === 'image' || msg.type === 'video') && !msg.deleted);
 
   return (
     <div className="friend-modal-overlay" onClick={onClose}>
@@ -57,6 +59,9 @@ const FriendProfileModal = ({ user, onClose }) => {
               src={user.profilePhoto || `https://ui-avatars.com/api/?name=${user.name}&background=7289da&color=fff`}
               alt={user.name}
               className="friend-large-avatar"
+              style={{ cursor: 'pointer' }}
+              onClick={() => window.open(user.profilePhoto || `https://ui-avatars.com/api/?name=${user.name}&background=7289da&color=fff`, '_blank')}
+              title="View full image"
             />
             <div className={`friend-status-indicator ${user.online ? 'online' : 'offline'}`} />
           </div>
@@ -85,6 +90,23 @@ const FriendProfileModal = ({ user, onClose }) => {
               )}
             </div>
           </div>
+
+          {sharedMedia.length > 0 && (
+            <div className="friend-about-section" style={{ marginTop: '20px' }}>
+              <h3>Shared Media ({sharedMedia.length})</h3>
+              <div className="friend-media-grid">
+                {sharedMedia.map(msg => (
+                  <div key={msg._id} className="friend-media-item">
+                    {msg.type === 'image' ? (
+                      <img src={msg.mediaUrl} alt="shared media" onClick={() => window.open(msg.mediaUrl, '_blank')} />
+                    ) : (
+                      <video src={msg.mediaUrl} onClick={() => window.open(msg.mediaUrl, '_blank')} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -264,6 +286,45 @@ const FriendProfileModal = ({ user, onClose }) => {
           color: #72767d;
           font-style: italic;
           margin: 0;
+        }
+
+        .friend-media-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+          gap: 10px;
+          margin-top: 10px;
+          max-height: 200px;
+          overflow-y: auto;
+          padding-right: 5px;
+        }
+
+        .friend-media-grid::-webkit-scrollbar {
+          width: 6px;
+        }
+        .friend-media-grid::-webkit-scrollbar-thumb {
+          background: rgba(114, 137, 218, 0.5);
+          border-radius: 3px;
+        }
+
+        .friend-media-item {
+          width: 100%;
+          aspect-ratio: 1;
+          border-radius: 8px;
+          overflow: hidden;
+          cursor: pointer;
+          border: 1px solid rgba(255,255,255,0.1);
+          transition: transform 0.2s;
+        }
+
+        .friend-media-item:hover {
+          transform: scale(1.05);
+          border-color: #7289da;
+        }
+
+        .friend-media-item img, .friend-media-item video {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
 
         @keyframes fadeIn {

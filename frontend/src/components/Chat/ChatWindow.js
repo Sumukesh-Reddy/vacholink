@@ -58,6 +58,8 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
   const [editingMsgId, setEditingMsgId] = useState(null);
   const [editContent, setEditContent] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -321,9 +323,24 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           </button>
         )}
 
+        {showSearch && (
+          <div className="search-bar-container">
+            <input 
+              type="text" 
+              placeholder="Search messages..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+              className="chat-search-input"
+            />
+            <button onClick={() => { setShowSearch(false); setSearchQuery(''); }} className="close-search-btn">✕</button>
+          </div>
+        )}
 
-        <div
-          className="header-user"
+        {!showSearch && (
+          <>
+            <div
+              className="header-user"
           onClick={() => setShowFriendProfile(true)}
           style={{ 
             cursor: 'pointer',
@@ -353,12 +370,21 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
         </div>
         <div className="header-actions">
           <button
+            className="search-toggle-btn"
+            onClick={() => setShowSearch(true)}
+            title="Search Messages"
+          >
+            🔍
+          </button>
+          <button
             className="delete-button"
             onClick={onDeleteRoom}
           >
             Delete chat
           </button>
         </div>
+        </>
+        )}
       </div>
 
       <div className="messages-container" ref={messagesContainerRef}>
@@ -378,9 +404,32 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           ))}
         </div>
 
-        {messages.map(msg => {
+        {(searchQuery 
+          ? messages.filter(m => m.content && m.content.toLowerCase().includes(searchQuery.toLowerCase()))
+          : messages
+        ).map((msg, index, displayedArr) => {
           const isOwnMessage = msg.sender?._id === user?._id;
           const messageDate = new Date(msg.createdAt);
+          const previousMsg = index > 0 ? displayedArr[index - 1] : null;
+          const previousDate = previousMsg ? new Date(previousMsg.createdAt) : null;
+          
+          let showDateSeparator = false;
+          let dateSeparatorText = '';
+          
+          if (!previousDate || messageDate.toDateString() !== previousDate.toDateString()) {
+            showDateSeparator = true;
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            if (messageDate.toDateString() === today.toDateString()) {
+              dateSeparatorText = 'Today';
+            } else if (messageDate.toDateString() === yesterday.toDateString()) {
+              dateSeparatorText = 'Yesterday';
+            } else {
+              dateSeparatorText = messageDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            }
+          }
           const isToday = messageDate.toDateString() === new Date().toDateString();
           const isEditing = editingMsgId === msg._id;
           const isHovered = hoveredMsgId === msg._id;
@@ -393,8 +442,13 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
           });
 
           return (
+            <React.Fragment key={msg._id}>
+              {showDateSeparator && !searchQuery && (
+                <div className="date-separator-wrapper">
+                  <div className="date-separator">{dateSeparatorText}</div>
+                </div>
+              )}
             <div
-              key={msg._id}
               id={`msg-${msg._id}`}
               className={`message-wrapper ${isOwnMessage ? 'own-message' : 'other-message'} ${msg.deleted ? 'deleted-message' : ''} ${swipingMsgId === msg._id ? 'is-swiping' : ''}`}
               onMouseEnter={() => setHoveredMsgId(msg._id)}
@@ -554,12 +608,15 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
                     ? messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     : messageDate.toLocaleDateString() + ' ' + messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                   }
-                  {isOwnMessage && msg.read && (
-                    <span className="read-indicator">✓✓</span>
+                  {isOwnMessage && (
+                    <span className={`read-indicator ${msg.read ? 'seen' : (msg.delivered ? 'delivered' : 'sent')}`}>
+                      {msg.read ? '✓✓' : (msg.delivered ? '✓✓' : '✓')}
+                    </span>
                   )}
                 </div>
               </div>
             </div>
+            </React.Fragment>
           );
         })}
         <div ref={messagesEndRef} className="messages-end" />
@@ -672,6 +729,7 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
       {showFriendProfile && (
         <FriendProfileModal
           user={otherParticipant}
+          messages={messages}
           onClose={() => setShowFriendProfile(false)}
         />
       )}
@@ -824,6 +882,67 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
 
         .status-dot.offline {
           background: #747f8d;
+        }
+
+        .search-bar-container {
+          display: flex;
+          align-items: center;
+          width: 100%;
+          gap: 10px;
+          animation: fadeIn 0.2s;
+        }
+
+        .chat-search-input {
+          flex: 1;
+          background: #202225;
+          border: 1px solid #4f545c;
+          border-radius: 20px;
+          color: white;
+          padding: 8px 16px;
+          font-size: 14px;
+          outline: none;
+        }
+
+        .chat-search-input:focus {
+          border-color: #7289da;
+        }
+
+        .close-search-btn, .search-toggle-btn {
+          background: transparent;
+          border: none;
+          color: #b9bbbe;
+          cursor: pointer;
+          font-size: 18px;
+          padding: 5px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: 0.2s;
+        }
+
+        .close-search-btn:hover, .search-toggle-btn:hover {
+          color: white;
+          background: rgba(255,255,255,0.1);
+        }
+
+        .date-separator-wrapper {
+          display: flex;
+          justify-content: center;
+          margin: 16px 0;
+          width: 100%;
+        }
+
+        .date-separator {
+          background: rgba(0, 0, 0, 0.4);
+          color: #b9bbbe;
+          font-size: 12px;
+          font-weight: 600;
+          padding: 4px 12px;
+          border-radius: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          backdrop-filter: blur(4px);
         }
 
         .status-text {
@@ -1017,9 +1136,13 @@ const ChatWindow = ({ room, messages, onSendMessage, onTyping, onDeleteRoom, onB
         }
 
         .read-indicator {
-          color: #3ba55d;
           font-size: 12px;
-          animation: readPulse 2s infinite;
+          margin-left: 4px;
+          color: #8e9297;
+        }
+        
+        .read-indicator.seen {
+          color: #4ade80;
         }
 
         .messages-end {
